@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompositionPlaylist xmlns="http://www.digicine.com/PROTO-ASDCP-CPL-20040511#">
+  <Id>urn:uuid:b4a6ac9f-9cbc-488b-883e-020544cd4ea7</Id>
+  <IssueDate>2010-07-06T10:55:31.941-07:00</IssueDate>
+  <Issuer>Dolby Laboratories Inc.</Issuer>
+  <Creator>
+    Secure Content Creator No. 500043 Digital Cinema Composer, Version 2.1.0.17 Project maenner_al_dente_v02
+  </Creator>
+  <ContentTitleText>
+    MAENNER_AL_DENTE_FTR_S_ITA-DE_51-ITA_2K_TCF_20100707_CPP
+  </ContentTitleText>
+  <ContentKind>feature</ContentKind>
+  ContentVersion><LabelText></LabelText></ContentVersion>
+  <RatingList></RatingList>
+  <ReelList>
+    <Reel>
+      <Id>urn:uuid:030ba3c4-d173-45d9-af0a-2658529fded5</Id>
+      <AssetList>
+	<MainPicture>
+	  <Id>urn:uuid:a871d172-4f79-439c-8de7-283b6e082f62</Id>
+	  <EditRate>24 1</EditRate>
+	  <IntrinsicDuration>740</IntrinsicDuration>
+	  <EntryPoint>192</EntryPoint>
+	  <Duration>500</Duration>
+	  <KeyId>urn:uuid:b596dff9-f45a-4a1b-a197-1eeb664837c5</KeyId>
+	  <Hash>jpYnqxUT0OdIr7Hb0tJ5WXHXUoI=</Hash>
+	  <FrameRate>24 1</FrameRate>
+	  <ScreenAspectRatio>2.39</ScreenAspectRatio>
+	</MainPicture>
+	<MainSound>
+	  <Id>urn:uuid:f807ae4f-7c64-4aa7-b695-c71e28ac8861</Id>
+	  <EditRate>24 1</EditRate>
+	  <IntrinsicDuration>500</IntrinsicDuration>
+	  <EntryPoint>0</EntryPoint>
+	  <Duration>500</Duration>
+	  <KeyId>urn:uuid:4353efd8-b07e-4857-a067-9ca285852ac9</KeyId>
+	  <Hash>vCtY+nYxgvBA3zcC0cqhPWeFtYQ=</Hash>
+	  <Language>it-de</Language>
+	</MainSound>
+      </AssetList>
+    </Reel>
+    <Reel>
+      <Id>urn:uuid:a56328c4-31c6-44de-8f1a-a22929162a75</Id>
+      <AssetList>
+	<MainPicture>
+	  <Id>urn:uuid:c6a05acb-3304-427f-8f70-84c57e792857</Id>
+	  <EditRate>24 1</EditRate>
+	  <IntrinsicDuration>95</IntrinsicDuration>
+	  <EntryPoint>0</EntryPoint>
+	  <Duration>95</Duration>
+	  <KeyId>urn:uuid:8d6acf3e-2ac0-4c09-9933-62c922b2f4fa</KeyId>
+	  <Hash>imju+vtpm9fm6LHv1cOoqUGsZI0=</Hash>
+	  <FrameRate>24 1</FrameRate>
+	  <ScreenAspectRatio>2.39</ScreenAspectRatio>
+	</MainPicture>
+	<MainSound>
+	  <Id>urn:uuid:3b572891-8ddf-40f5-925d-6da71364a2b8</Id>
+	  <EditRate>24 1</EditRate>
+	  <IntrinsicDuration>7201</IntrinsicDuration>
+	  <EntryPoint>500</EntryPoint>
+	  <Duration>95</Duration>
+	  <KeyId>urn:uuid:9e02d2be-961a-470d-a4ce-bf44d34371f9</KeyId>
+	  <Hash>zsd4jFuEkJWkaWuPZinfiksWfcQ=</Hash>
+	  <Language>it-de</Language>
+	</MainSound>
+      </AssetList>
+    </Reel>
+    <Reel>
+    <Id>urn:uuid:714f7403-fe42-490d-bd42-cb8a3d38c0da</Id>
+    <AssetList>
+      <MainPicture>
+	<Id>urn:uuid:606394a8-418b-4d6d-95d4-7335b8ccb9bd</Id>
+	<EditRate>24 1</EditRate>
+	<IntrinsicDuration>21613</IntrinsicDuration>
+	<EntryPoint>1144</EntryPoint>
+	<Duration>20421</Duration>
+	<KeyId>urn:uuid:8e8c50d1-13d9-4396-adb5-bfe6ee17ae17</KeyId>
+	<Hash>8HiD7nfeyFdi19h2sky469R2KA4=</Hash>
+	<FrameRate>24 1</FrameRate>
+	<ScreenAspectRatio>2.39</ScreenAspectRatio>
+      </MainPicture>
+      <MainSound>
+	<Id>urn:uuid:4a365298-94a9-465a-a05d-6a6e0c97b2af</Id>
+	<EditRate>24 1</EditRate>
+	<IntrinsicDuration>22323</IntrinsicDuration>
+	<EntryPoint>1630</EntryPoint>
+	<Duration>20421</Duration>
+	<KeyId>urn:uuid:decaf322-fae5-42fe-8ca1-ee721692f8de</KeyId>
+	<Hash>kJYRJ9fTde5K1hJ6htQyZjcZtps=</Hash>
+	<Language>it-de</Language>
+      </MainSound>
+      <MainSubtitle>
+	<Id>urn:uuid:88bcb3ad-31c9-424d-b3c4-8b4e719c1039</Id>
+	<EditRate>24 1</EditRate>
+	<IntrinsicDuration>21613</IntrinsicDuration>
+	<EntryPoint>0</EntryPoint>
+	<Duration>20421</Duration>
+	<Hash>CKh3+vfIbAZZDFY0f3Qikqu9brE=</Hash>
+	<Language>de</Language>
+      </MainSubtitle>
+    </AssetList>
+  </Reel>
+  <Reel><Id>urn:uuid:9a1196bd-933c-493a-b96a-d7aa8359d967</Id><AssetList><MainPicture><Id>urn:uuid:ff5393fd-5711-44ce-8fd0-02bc7da66d5b</Id><EditRate>24 1</EditRate><IntrinsicDuration>29804</IntrinsicDuration><EntryPoint>192</EntryPoint><Duration>29564</Duration><KeyId>urn:uuid:ffc5421b-7f4c-4aed-ac74-014713cbf3f3</KeyId><Hash>sEbzQd4cm/ir+g+kLZiQYiHrqGE=</Hash><FrameRate>24 1</FrameRate><ScreenAspectRatio>2.39</ScreenAspectRatio></MainPicture><MainSound><Id>urn:uuid:9677bb1d-5c3c-4a54-ac87-d38a1c2e95b5</Id><EditRate>24 1</EditRate><IntrinsicDuration>31416</IntrinsicDuration><EntryPoint>1632</EntryPoint><Duration>29564</Duration><KeyId>urn:uuid:cfed68c0-e90d-4bd3-93bf-b26801e5218b</KeyId><Hash>rEPgAJ4iKezkMiJWL3Cn1nxMiq4=</Hash><Language>it-de</Language></MainSound><MainSubtitle><Id>urn:uuid:8ca44921-420f-4092-9604-3aab77d59a40</Id><EditRate>24 1</EditRate><IntrinsicDuration>29804</IntrinsicDuration><EntryPoint>0</EntryPoint><Duration>29564</Duration><Hash>jF7N7xOuYW+aEqBPF/9cHegqepk=</Hash><Language>de</Language></MainSubtitle></AssetList></Reel><Reel><Id>urn:uuid:c1bdb0f1-8420-4345-b953-bad5b7998d16</Id><AssetList><MainPicture><Id>urn:uuid:254c0c75-4fc9-4dea-ad6c-471b85f8dcd2</Id><EditRate>24 1</EditRate><IntrinsicDuration>18721</IntrinsicDuration><EntryPoint>192</EntryPoint><Duration>18481</Duration><KeyId>urn:uuid:de54168c-4cfd-4fe6-9201-56e05370a8d1</KeyId><Hash>iCFDARLzTHhfWLxfQo1y9uqZriU=</Hash><FrameRate>24 1</FrameRate><ScreenAspectRatio>2.39</ScreenAspectRatio></MainPicture><MainSound><Id>urn:uuid:17ee4f20-8f3d-43ee-875e-e82d31205f10</Id><EditRate>24 1</EditRate><IntrinsicDuration>20249</IntrinsicDuration><EntryPoint>1632</EntryPoint><Duration>18481</Duration><KeyId>urn:uuid:c8f5c84e-d7e8-46a5-ba45-5361fa8ccc38</KeyId><Hash>ceM8IkALdEqlZ0ZkQnQ7khnZD4s=</Hash><Language>it-de</Language></MainSound><MainSubtitle><Id>urn:uuid:307c7e10-86a2-45e2-9b90-1edb75194226</Id><EditRate>24 1</EditRate><IntrinsicDuration>18721</IntrinsicDuration><EntryPoint>0</EntryPoint><Duration>18481</Duration><Hash>Dx9QQBseNUXCGjVbX6Qbhug2VlM=</Hash><Language>de</Language></MainSubtitle></AssetList></Reel><Reel><Id>urn:uuid:81d71e49-8287-4fc1-a8fd-f50080576923</Id><AssetList><MainPicture><Id>urn:uuid:2391224e-5efa-4ea0-9f24-3bb5380cd401</Id><EditRate>24 1</EditRate><IntrinsicDuration>11851</IntrinsicDuration><EntryPoint>192</EntryPoint><Duration>11611</Duration><KeyId>urn:uuid:1964d935-e6ef-44a9-ba33-afd31105d0da</KeyId><Hash>mhwt1O3ZUfwLBy0x4nB9OoInAno=</Hash><FrameRate>24 1</FrameRate><ScreenAspectRatio>2.39</ScreenAspectRatio></MainPicture><MainSound><Id>urn:uuid:5a6727a0-65ea-40ff-bf9e-e140bafd5d43</Id><EditRate>24 1</EditRate><IntrinsicDuration>13417</IntrinsicDuration><EntryPoint>1632</EntryPoint><Duration>11611</Duration><KeyId>urn:uuid:2e24231c-079e-4312-9be0-372bf9b22e85</KeyId><Hash>q6w6ecieEYOch6/SuQgpBDtZBjM=</Hash><Language>it-de</Language></MainSound><MainSubtitle><Id>urn:uuid:c77470b9-9977-44e7-b78b-f2cd5992c0c3</Id><EditRate>24 1</EditRate><IntrinsicDuration>11851</IntrinsicDuration><EntryPoint>0</EntryPoint><Duration>11611</Duration><Hash>L8Nie2QsjWEdCEU5PscK8hhq7sw=</Hash><Language>de</Language></MainSubtitle></AssetList></Reel><Reel><Id>urn:uuid:8917de72-d86b-4c2e-9b40-7007b136468e</Id><AssetList><MainPicture><Id>urn:uuid:bc96d7fc-7954-446d-b1d4-53e547128cad</Id><EditRate>24 1</EditRate><IntrinsicDuration>21480</IntrinsicDuration><EntryPoint>192</EntryPoint><Duration>21240</Duration><KeyId>urn:uuid:772b33d1-8230-450e-8d9d-d2b0567692f2</KeyId><Hash>+CjG1QA58pOlA3IpQJYjX9atgcY=</Hash><FrameRate>24 1</FrameRate><ScreenAspectRatio>2.39</ScreenAspectRatio></MainPicture><MainSound><Id>urn:uuid:2e33f12c-f92b-49b0-9dad-e317b21e7960</Id><EditRate>24 1</EditRate><IntrinsicDuration>23079</IntrinsicDuration><EntryPoint>1632</EntryPoint><Duration>21240</Duration><KeyId>urn:uuid:d7ecd07e-c5b8-4efd-ac59-a4678d9ed748</KeyId><Hash>AVkFS+C/uufewI47/VUFdHjxft8=</Hash><Language>it-de</Language></MainSound><MainSubtitle><Id>urn:uuid:7e289bb8-f6ff-4945-9019-9051c716f4a1</Id><EditRate>24 1</EditRate><IntrinsicDuration>21480</IntrinsicDuration><EntryPoint>0</EntryPoint><Duration>21240</Duration><Hash>ISAHmQZofAj22ezd6SkbpnrfmE8=</Hash><Language>de</Language></MainSubtitle></AssetList></Reel><Reel><Id>urn:uuid:49ca1092-782e-4ec6-acda-b05aeb909123</Id><AssetList><MainPicture><Id>urn:uuid:7e3ce592-25ec-4eb5-87b8-d4d9987636b9</Id><EditRate>24 1</EditRate><IntrinsicDuration>28630</IntrinsicDuration><EntryPoint>192</EntryPoint><Duration>28390</Duration><KeyId>urn:uuid:32dc4562-c04f-48f6-bd51-6426e8678dad</KeyId><Hash>o8XD541Dcvgi/2mQ3so3PYbQs2g=</Hash><FrameRate>24 1</FrameRate><ScreenAspectRatio>2.39</ScreenAspectRatio></MainPicture><MainSound><Id>urn:uuid:c2f7327d-59fa-4d59-8112-a25337bbef6e</Id><EditRate>24 1</EditRate><IntrinsicDuration>30249</IntrinsicDuration><EntryPoint>1632</EntryPoint><Duration>28390</Duration><KeyId>urn:uuid:f2df18ae-dd9e-4405-8280-422990c74938</KeyId><Hash>v78amY8Hy+wVpUYEZjoDL81/37Q=</Hash><Language>it-de</Language></MainSound><MainSubtitle><Id>urn:uuid:8be11470-86ff-479d-8e72-a8f512bd0403</Id><EditRate>24 1</EditRate><IntrinsicDuration>28630</IntrinsicDuration><EntryPoint>0</EntryPoint><Duration>28390</Duration><Hash>ipuJwphrs69367fzUxA+wEm5YdM=</Hash><Language>de</Language></MainSubtitle></AssetList></Reel><Reel><Id>urn:uuid:708bff6e-2552-4fb9-8064-c0792a1e09bf</Id><AssetList><MainPicture><Id>urn:uuid:d06427b0-9c8c-448c-a1c1-7cb333c4533a</Id><EditRate>24 1</EditRate><IntrinsicDuration>12735</IntrinsicDuration><EntryPoint>192</EntryPoint><Duration>12495</Duration><KeyId>urn:uuid:4298afe6-d719-4f14-873c-efc3355e9e9f</KeyId><Hash>hj6OyV3MVEq3804cQFfmB34ra3s=</Hash><FrameRate>24 1</FrameRate><ScreenAspectRatio>2.39</ScreenAspectRatio></MainPicture><MainSound><Id>urn:uuid:e7eb4ef4-e62e-47a9-aea4-a4a48e15aede</Id><EditRate>24 1</EditRate><IntrinsicDuration>14296</IntrinsicDuration><EntryPoint>1632</EntryPoint><Duration>12495</Duration><KeyId>urn:uuid:f4c5b17c-c87e-4b66-9323-9d13ca84e444</KeyId><Hash>UVPk8TlTJcWnYeWzT7R2ytt7ySk=</Hash><Language>it-de</Language></MainSound><MainSubtitle><Id>urn:uuid:c7eff1b5-8cab-4d23-ad63-bc5b374ac006</Id><EditRate>24 1</EditRate><IntrinsicDuration>12735</IntrinsicDuration><EntryPoint>0</EntryPoint><Duration>12495</Duration><Hash>yGrMcWElkLEHVErHaaZHMCOKLfA=</Hash><Language>de</Language></MainSubtitle></AssetList></Reel><Reel><Id>urn:uuid:73be20f8-6eb6-4ed9-8779-629a474b811c</Id><AssetList><MainPicture><Id>urn:uuid:f8d3fbab-beb0-46a7-80d9-abaf2b704901</Id><EditRate>24 1</EditRate><IntrinsicDuration>19420</IntrinsicDuration><EntryPoint>192</EntryPoint><Duration>19180</Duration><KeyId>urn:uuid:6e96d688-b56f-4b15-b038-f5c34992450a</KeyId><Hash>x4kPo2N9p/5Wu4hJnaS2xgln234=</Hash><FrameRate>24 1</FrameRate><ScreenAspectRatio>2.39</ScreenAspectRatio></MainPicture><MainSound><Id>urn:uuid:4b188498-794d-4637-b7cd-61565795f7e2</Id><EditRate>24 1</EditRate><IntrinsicDuration>21116</IntrinsicDuration><EntryPoint>1632</EntryPoint><Duration>19180</Duration><KeyId>urn:uuid:7c489309-e340-4750-bfe6-803be7873cb5</KeyId><Hash>h/hnKKDFLNknFZqGHYQ0jsJLunA=</Hash><Language>it-de</Language></MainSound><MainSubtitle><Id>urn:uuid:3e29afa9-f3eb-4eec-b2cb-b1c5af4d0732</Id><EditRate>24 1</EditRate><IntrinsicDuration>19420</IntrinsicDuration><EntryPoint>0</EntryPoint><Duration>19180</Duration><Hash>Ha4yEKUT8rgDrLhSpG+JP1N57Ks=</Hash><Language>de</Language></MainSubtitle></AssetList></Reel></ReelList></CompositionPlaylist>

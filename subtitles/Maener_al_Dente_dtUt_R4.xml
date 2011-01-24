@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<DCSubtitle Version="1.0">
+  <SubtitleID> c77470b9-9977-44e7-b78b-f2cd5992c0c3 </SubtitleID>
+  <MovieTitle> Mine_Vaganti </MovieTitle>
+  <ReelNumber> 4 </ReelNumber>
+  <Language> German </Language>
+  <LoadFont Id="Font1" URI="arial.ttf"/>
+  <Font Size="47" Weight="normal" Id="Font1" Color="FFFFFFFF" Effect="shadow" EffectColor="FF000000">
+    <Subtitle SpotNumber="1" TimeIn="00:00:00:011" TimeOut="00:00:03:042" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ja, unser mündlicher Vertrag war anders, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="2" TimeIn="00:00:03:104" TimeOut="00:00:06:104" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> aber es gibt noch </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Spielraum für Verhandlungen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="3" TimeIn="00:00:06:167" TimeOut="00:00:09:094" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Sie können Ihr Wort nicht zurücknehmen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="4" TimeIn="00:00:09:136" TimeOut="00:00:13:229" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Der Vertrag ist nicht unterzeichnet. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Wir haben unsere Meinung geändert. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="5" TimeIn="00:00:14:083" TimeOut="00:00:16:240" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Hast du mit Sergio geredet? </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> - Sagst du nichts, Elena? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="6" TimeIn="00:00:17:042" TimeOut="00:00:20:229" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Darf ich reden? </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> - Wozu hab ich dich mitgenommen? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="7" TimeIn="00:00:21:021" TimeOut="00:00:24:125" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Doktor Mancini! </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Das ist nicht der Moment zum Verhandeln. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="8" TimeIn="00:00:24:167" TimeOut="00:00:28:042" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> In 2 Wochen muss produziert sein </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> und wir haben bereits Verspätung. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="9" TimeIn="00:00:28:083" TimeOut="00:00:31:229" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Unterschreiben wir, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> um die Produktion nicht aufzuhalten. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="10" TimeIn="00:00:32:021" TimeOut="00:00:35:052" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Und wir berücksichtigen Ihre neuen Wünsche. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="11" TimeIn="00:00:35:094" TimeOut="00:00:39:125" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Sie haben kein Recht, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> in diesem Unternehmen zu verhandeln. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="12" TimeIn="00:00:39:167" TimeOut="00:00:41:115" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ab jetzt schon. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="13" TimeIn="00:00:42:188" TimeOut="00:00:44:219" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Du arbeitest bei uns? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="14" TimeIn="00:00:45:021" TimeOut="00:00:47:104" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ach ... und die Kinder? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="15" TimeIn="00:00:49:094" TimeOut="00:00:51:219" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Geht wieder nach hinten, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="16" TimeIn="00:00:53:219" TimeOut="00:00:57:011" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> schön gehen, einen Schritt vor </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> die Beine kreuzen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="17" TimeIn="00:00:57:146" TimeOut="00:00:59:146" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ihr müsst die Füsse kreuzen! </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="18" TimeIn="00:01:02:063" TimeOut="00:01:04:042" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Schön gerade. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="19" TimeIn="00:01:04:146" TimeOut="00:01:07:167" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Aufrecht, ihr müsst aufrechter gehen. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Der Hals! </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="20" TimeIn="00:01:08:000" TimeOut="00:01:11:011" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Der Hals schön ... Na gut. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="21" TimeIn="00:01:12:198" TimeOut="00:01:14:208" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Was machst du, Tante? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="22" TimeIn="00:01:16:031" TimeOut="00:01:18:000" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich habe Husten, hörst du? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="23" TimeIn="00:01:18:115" TimeOut="00:01:21:094" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Was spielen wir jetzt, Tante? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="24" TimeIn="00:01:21:188" TimeOut="00:01:23:115" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Schlaft ihr nie nachmittags? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="25" TimeIn="00:01:23:167" TimeOut="00:01:25:198" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Spielen wir Brot und Marmelade? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="26" TimeIn="00:01:26:011" TimeOut="00:01:30:073" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Ihr seid wahnsinnig erkältet. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Lasst mich hören, wie ihr hustet. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="27" TimeIn="00:01:31:073" TimeOut="00:01:33:083" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Schrecklich, diese Erkältung. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="28" TimeIn="00:01:33:125" TimeOut="00:01:38:021" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Wartet, Tante gibt euch etwas, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> das euren Husten ganz schnell wegzaubert. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="29" TimeIn="00:01:39:177" TimeOut="00:01:41:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Das heilt alles. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="30" TimeIn="00:01:44:083" TimeOut="00:01:47:031" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Gut! </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> - Ja, gut, nicht? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="31" TimeIn="00:01:53:031" TimeOut="00:01:55:042" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Wie alt warst du? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="32" TimeIn="00:01:56:156" TimeOut="00:01:59:115" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> 14, als die Krankheit ausbrach. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="33" TimeIn="00:01:59:229" TimeOut="00:02:05:136" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Vater war nie da. Ich hatte die Schlüssel </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> zum Haus und musste alles selber machen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="34" TimeIn="00:02:07:188" TimeOut="00:02:11:219" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Für sie kochen, auf sie aufpassen, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> lernen ... alles. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="35" TimeIn="00:02:12:125" TimeOut="00:02:13:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Mama ... </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="36" TimeIn="00:02:14:208" TimeOut="00:02:17:177" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> wollte niemand anderen in ihrer Nähe. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="37" TimeIn="00:02:18:011" TimeOut="00:02:20:011" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Am Schluss ging es ihr so schlecht, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="38" TimeIn="00:02:20:094" TimeOut="00:02:24:115" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> dass ich hoffte, sie würde sterben, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> schnell sterben. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="39" TimeIn="00:02:26:188" TimeOut="00:02:29:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Ich hielt das für besser, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> für sie und für mich. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="40" TimeIn="00:02:30:167" TimeOut="00:02:32:094" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich irrte mich. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="41" TimeIn="00:02:33:188" TimeOut="00:02:36:229" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Es passierte im letzten Gymnasiumjahr. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="42" TimeIn="00:02:37:146" TimeOut="00:02:41:000" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich weiß noch, wie ich heimkam </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="43" TimeIn="00:02:43:073" TimeOut="00:02:47:052" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> und nicht wusste, was tun. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich öffnete die Tür, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="44" TimeIn="00:02:48:042" TimeOut="00:02:53:167" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> und da war niemand, der mich erwartete, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> niemand, der mich brauchte, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="45" TimeIn="00:02:54:188" TimeOut="00:02:57:177" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> niemand, für den ich wichtig war. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="46" TimeIn="00:03:51:240" TimeOut="00:03:53:208" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich bin müde. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="47" TimeIn="00:03:55:083" TimeOut="00:03:57:125" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Bis morgen? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="48" TimeIn="00:04:01:125" TimeOut="00:04:04:094" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Um neun Uhr? </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> - Um neun. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="49" TimeIn="00:04:10:094" TimeOut="00:04:12:000" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Gute Nacht. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="50" TimeIn="00:04:26:083" TimeOut="00:04:28:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Du bist ihr sympathisch. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="51" TimeIn="00:04:30:240" TimeOut="00:04:33:125" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Mich hat sie nie mit hoch genommen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="52" TimeIn="00:04:36:000" TimeOut="00:04:38:229" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Hast du je bei jemandem </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> das Gefühl gehabt, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="53" TimeIn="00:04:39:042" TimeOut="00:04:42:011" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> er sei wie dein Arm, dein Bein? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="54" TimeIn="00:04:43:021" TimeOut="00:04:45:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Sonst kannst du mich nicht verstehen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="55" TimeIn="00:04:45:229" TimeOut="00:04:47:219" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> So hänge ich an Michele. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="56" TimeIn="00:04:48:094" TimeOut="00:04:51:042" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Wie an dieser Hand. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> - Ich kenne das. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="57" TimeIn="00:04:52:229" TimeOut="00:04:57:094" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Ich wollte ihn zurückholen, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> ihm sagen, dass ich geredet hatte. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="58" TimeIn="00:04:57:146" TimeOut="00:05:00:021" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich habe ihm zu viel zugemutet. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="59" TimeIn="00:05:00:177" TimeOut="00:05:03:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich entliess ihn, damit er nicht redet, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="60" TimeIn="00:05:03:198" TimeOut="00:05:08:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> quartierte ihn in einem Haus ausserhalb </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> ein, um ihn heimlich zu sehen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="61" TimeIn="00:05:08:198" TimeOut="00:05:11:031" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Er wurde operiert, litt. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="62" TimeIn="00:05:11:125" TimeOut="00:05:13:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich konnte nicht hingehen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="63" TimeIn="00:05:17:208" TimeOut="00:05:20:115" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Er hat gesagt, es sei zu spät, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="64" TimeIn="00:05:21:063" TimeOut="00:05:23:042" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> er wolle mich nicht mehr sehen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="65" TimeIn="00:05:23:146" TimeOut="00:05:27:063" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Das tut mir leid. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> - Es tut dir leid? Das ist alles? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="66" TimeIn="00:05:27:177" TimeOut="00:05:30:198" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Schreibst du in deinen Büchern so Mist? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="67" TimeIn="00:05:32:042" TimeOut="00:05:34:125" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Es war deine Schuld. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> - Meine Schuld? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="68" TimeIn="00:05:34:167" TimeOut="00:05:38:125" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Ja, dass ich hier an deiner Stelle </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> alles verheimlichen musste. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="69" TimeIn="00:05:38:167" TimeOut="00:05:44:146" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Du musstest ja in Rom studieren. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Hast in Ruhe gelebt, dein Ding gemacht. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="70" TimeIn="00:05:45:177" TimeOut="00:05:47:240" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Na los, nur zu. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="71" TimeIn="00:05:49:011" TimeOut="00:05:52:115" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Geh in eine andere Stadt, wie ich. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="72" TimeIn="00:05:55:115" TimeOut="00:05:58:208" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Such Freunde, mit denen du reden kannst, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="73" TimeIn="00:06:00:240" TimeOut="00:06:03:073" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> jemanden, den du lieben kannst, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="74" TimeIn="00:06:03:115" TimeOut="00:06:06:094" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> unter den Tausenden, die dich nicht mögen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="75" TimeIn="00:06:07:208" TimeOut="00:06:11:021" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Du weinst, du leidest, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="76" TimeIn="00:06:12:031" TimeOut="00:06:13:229" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> heimlich. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="77" TimeIn="00:06:17:167" TimeOut="00:06:22:052" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Wenn es nur darum ging, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> hättest du mit mir reden können, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="78" TimeIn="00:06:22:094" TimeOut="00:06:24:240" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> statt mich in diesem Chaos zurückzulassen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="79" TimeIn="00:06:25:104" TimeOut="00:06:28:042" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Wer hält dich zurück? Rede auch. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="80" TimeIn="00:06:28:177" TimeOut="00:06:33:063" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Du willst gehen? Sag Papa, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> dass wir die letzten Cantones sind. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="81" TimeIn="00:06:33:104" TimeOut="00:06:35:198" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Unser Name wird aussterben. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="82" TimeIn="00:06:37:031" TimeOut="00:06:40:073" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Du musst es Papa sagen. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> - Rühr mich nicht an. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="83" TimeIn="00:06:40:115" TimeOut="00:06:44:219" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Wegen dir kam er ins Krankenhaus. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Was soll ich machen? Ihn umbringen? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="84" TimeIn="00:06:50:208" TimeOut="00:06:54:136" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Michele hat recht. </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Du hast mit keinem Mitleid. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="85" TimeIn="00:06:54:177" TimeOut="00:06:57:000" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Nicht mal mit deinem Bruder. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="86" TimeIn="00:06:57:042" TimeOut="00:07:01:104" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Du musst allein bleiben, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> wie alle, die nur an sich denken. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="87" TimeIn="00:07:01:219" TimeOut="00:07:04:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Was willst du, verdammte Scheiße? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="88" TimeIn="00:07:21:198" TimeOut="00:07:24:156" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Man nahm uns zu Hause unsere Würde. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="89" TimeIn="00:07:25:011" TimeOut="00:07:26:167" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Und wir? </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="90" TimeIn="00:07:27:021" TimeOut="00:07:31:208" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> Wir müssen Dinge stehlen, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> uns unter Brüdern prügeln, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="91" TimeIn="00:07:32:031" TimeOut="00:07:36:104" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="14"> denn was dem einen gegeben wird, </Text>
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> wird dem anderen genommen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="92" TimeIn="00:07:38:021" TimeOut="00:07:40:167" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ich musste mir dieses Leben verdienen. </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="93" TimeIn="00:07:43:208" TimeOut="00:07:45:177" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> Ob gut oder schlecht, </Text>
+    </Subtitle>
+    <Subtitle SpotNumber="94" TimeIn="00:07:48:073" TimeOut="00:07:51:021" FadeUpTime="0" FadeDownTime="0">
+       <Text VAlign="bottom" HAlign="center" HPosition="0" VPosition="7"> ich komme wegen niemandem zurück. </Text>
+    </Subtitle>
+  </Font>
+</DCSubtitle>

@@ -1,0 +1,340 @@
+#!/usr/bin/env ruby
+AppVersion = "v0.2010.12.23"
+AppName = File.basename( $0 )
+#
+# Wolfgang Woehl v0.2010
+#
+# Cinemaslides is a glue tool to create slideshows for digital cinema (DCPs)
+#
+# It offers preview modes, a basic set of transition types and a basic set of DCP authoring options.
+# It will conform images to cinema-compliant specs and transform to X'Y'Z'.
+# Additional proof-of-concept features:
+#   + plaintext/encrypted DCPs
+#   + signatures
+#   + KDM mode
+#
+# Run "cinemaslides -h" to see options
+# Run "cinemaslides --examples" to see a couple of example invocations
+#
+# Export CINEMASLIDESDIR to point at the desired location for temporary files, asset depot etc.
+#   (or use the default location HOME/cinemaslidesdir)
+# Export CINEMACERTSTORE to point at a directory that holds your signing key and validating certificate chain
+# Use "make-dc-certificate-cain.rb (https://github.com/wolfgangw/digital_cinema_tools/blob/master/make-dc-certificate-chain.rb)
+#   to create a proof-of-concept, digital cinema compliant X.509 certificate chain that will work out of the box with current cinemaslides.
+#
+# Requires:
+#   ruby (1.8.7), gem, bash (install your distribution's packages)
+#   asdcplib (including asdcp-test and kmuuidgen, http://www.cinecert.com/asdcplib/)
+#   ImageMagick, MPlayer, SoX (install your distribution's packages)
+#   OpenJPEG (http://code.google.com/p/openjpeg/downloads/list) or Kakadu (see the note on Kakadu's terms of use below)
+#   highline (gem install highline)
+#   nokogiri (gem install nokogiri, requires ruby-dev, libxml2-dev)
+# In addition for encrypted essence DCPs:
+#   asdcplib's kmrandgen
+# For signed DCPs and KDM mode (KDM mode is work in progress, expect bugs and flying saucers):
+#   xmlsec1 (http://www.aleksey.com/xmlsec/)
+#   openssl (standard cli interface, install your distribution's package)
+#   asdcplib's kmuuidgen
+#
+###
+#   Kakadu (http://www.kakadusoftware.com/index.php) is a proprietary JPEG 2000 implementation, written by Dr. Taubman
+#   Kakadu Copyright is owned by NewSouth Innovations Proprietary Ltd, commercial arm of the University of New South Wales, Sydney, Australia
+#   Its feature set and performance are quite impressive. It is significantly faster than OpenJPEG's implementation.
+#   Kakadu is available for demonstration purposes (Windows, Mac, Linux).
+#   Please see "Downloadable Executables Copyright and Disclaimer" at 
+#   http://www.kakadusoftware.com/index.php?option=com_content&task=view&id=26&Itemid=22
+#   and make sure you respect these terms of use. Thank you.
+###
+#
+# Ruby geeks: If you value your sanity don't read beyond this line. I'm working on it ...
+#
+#
+#
+#  BEWARE. PLEASE NO FILE NAMES WITH SPACES andrae.steiner@liwest.at
+#
+#
+
+
+
+require 'fileutils'
+if RUBY_VERSION <= '1.9'
+  require 'ftools' # File.copy
+  begin
+    require 'rubygems'
+  rescue LoadError
+  end
+end
+require 'optparse'
+require 'ostruct'
+require 'openssl'
+require 'digest/md5'
+require 'base64'
+require 'pp'
+require 'tempfile'
+require 'nokogiri'
+require 'highline/import'
+
+require 'Logger'
+require 'TimeDateUtils'
+require 'KDM_Gen'
+require 'OptParser'
+require 'OutputType'
+require 'X509Certificate'
+require 'InputType'
+require 'ShellCommands'
+require 'SMPTE_DCP'
+
+include TimeDateUtils
+
+def key_types
+  { SMPTE_DCP::MAIN_PICTURE_ASSET_TYPE => 'MDIK', 
+    SMPTE_DCP::MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE => 'MDIK', 
+    SMPTE_DCP::MAIN_SOUND_ASSET_TYPE => 'MDAK', 
+    SMPTE_DCP::MAIN_SUBTITLE_ASSET_TYPE => 'MDSK' }
+end
+
+def encoder_ids
+  {OptParser::ENCODER_CHOICE_OJ_TM => 'opjtm', 
+   OptParser::ENCODER_CHOICE_OJ => 'opj', 
+   OptParser::ENCODER_CHOICE_KAKADU => 'kdu' }
+end
+def encoder_classnames
+  {OptParser::ENCODER_CHOICE_OJ_TM => 'Openjpeg_Tm_Encoder', 
+   OptParser::ENCODER_CHOICE_OJ => 'Openjpeg_Encoder', 
+   OptParser::ENCODER_CHOICE_KAKADU => 'Kakadu_Encoder' }
+end
+
+def output_type_classnames
+  { OptParser::OUTPUT_TYPE_CHOICE_PREVIEW => 'PreviewOutputType', 
+    OptParser::OUTPUT_TYPE_CHOICE_FULLPREVIEW => 'PreviewOutputType', 
+    OptParser::OUTPUT_TYPE_CHOICE_DCP => 'DCPOutputType', 
+    OptParser::OUTPUT_TYPE_CHOICE_KDM => 'KDMOutputType' }
+end
+
+def input_type_classnames
+  { OptParser::INPUT_TYPE_CHOICE_SLIDE => 'SlideshowInputType', 
+    OptParser::INPUT_TYPE_CHOICE_AV => 'AVContainerInputType' }
+end
+
+#    options.transition_and_timing_choices = [ 'cut', 'fade', 'crossfade' ]
+def image_sequence_classnames
+  { OptParser::TRANSITION_CHOICE_CUT => 'FadeOrCutTransitionsImageSequence',
+    OptParser::TRANSITION_CHOICE_FADE => 'FadeOrCutTransitionsImageSequence', 
+    OptParser::TRANSITION_CHOICE_CROSSFADE => "CrossfadeTransitionsImageSequence" }
+end
+
+
+# Beispiel für Erweiterbarkeit andrae.steiner@liwest.at
+#def image_sequence_classnames
+#  { OptParser::TRANSITION_CHOICE_CUT => 'FadeOrCutTransitionsImageSequence', 
+#    OptParser::TRANSITION_CHOICE_FADE => 'FadeOrCutTransitionsImageSequence', 
+#    OptParser::TRANSITION_CHOICE_CROSSFADE => "CrossfadeRotateTransitionsImageSequence" }
+#end
+
+def encoder_prog
+  { OptParser::ENCODER_CHOICE_KAKADU => 'kdu_compress', 
+    OptParser::ENCODER_CHOICE_OJ => 'image_to_j2k', 
+    OptParser::ENCODER_CHOICE_OJ_TM => 'opendcp_j2k' }
+end
+
+def mandatories
+{ OptParser::OUTPUT_TYPE_CHOICE_PREVIEW => preview_mandatory, 
+  OptParser::OUTPUT_TYPE_CHOICE_FULLPREVIEW => preview_mandatory, 
+  OptParser::OUTPUT_TYPE_CHOICE_DCP => dcp_mandatory, 
+  OptParser::OUTPUT_TYPE_CHOICE_KDM => kdm_mandatory }
+end
+
+def preview_mandatory
+  [ 'convert', 'sha1sum', 'identify', 'montage', 'display', 'mplayer', 'sox', 'soxi' ]
+end
+
+def dcp_mandatory
+  [ 'convert', 'sha1sum', 'identify', 'sox', 'soxi', 'asdcp-test', 'kmuuidgen' ]
+end
+
+def kdm_mandatory
+  [ 'xmlsec1', 'openssl', 'kmuuidgen' ]
+end
+
+
+module DCTools
+  def transform_cert_name( name )
+    # OpenSSL::X509::Name.to_a -> to get an array of RDNs:
+    # [["O", "example.com", 19], ["OU", "csc.example.com", 19], ["CN", "CS.dcstore.CONTENT", 19], ["dnQualifier", "/I8bDQt32ucQDc+53O1pZn2jTw8=", 19]]
+    # for '/O=example.com/OU=csc.example.com/CN=CS.dcstore.CONTENT/dnQualifier=/I8bDQt32ucQDc+53O1pZn2jTw8='
+    tmp = Array.new
+    name.to_a.each do |rdn|
+      tmp << [ rdn[ 0 ], rdn[ 1 ] ].join( '=' )
+    end
+    return tmp.reverse.join( ',' )
+  end
+  
+  def asdcp_digest( file )
+    ShellCommands::ShellCommands.openssl_sha1_64( file ).chomp
+    
+    # equiv. `openssl dgst -sha1 -binary #{ file } | openssl base64`.chomp
+    
+    # equiv. `asdcp-test -t #{ file }`.split( ' ' ).first
+    # Base64::encode64( OpenSSL::Digest.digest( OpenSSL::Digest::SHA1.new, File.read( file ) ) ).chomp
+    # FIXME braucht bei meinem Opensuse 11.3 ewig und friert die Maschine wegen übermäßigen Speicherverbrauches
+    # und darausfolgendem paging ein.
+    # andrae.steiner@liwest.at
+    
+  end
+  
+  def cipher_data_payload_binary_package( signer_cert_thumbprint, cpl_id, key_type, key_id, kdm_not_valid_before, kdm_not_valid_after, key )
+    structure_id_bin = %w( f1 dc 12 44 60 16 9a 0e 85 bc 30 06 42 f8 66 ab ).pack( 'H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2' )
+    signer_cert_thumbprint_bin = ShellCommands::ShellCommands.base64(signer_cert_thumbprint)
+    cpl_id_bin = uuid_to_bin( cpl_id )
+    key_id_bin = uuid_to_bin( key_id )
+    key_bin = key.split( /(\w\w)/ ).delete_if { |e| e == '' }.pack( 'H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2' )
+    binary_package = structure_id_bin + signer_cert_thumbprint_bin + cpl_id_bin + key_type + key_id_bin + kdm_not_valid_before + kdm_not_valid_after + key_bin
+  end
+  
+  def dc_thumbprint( cert_file )
+    ShellCommands::ShellCommands.dc_thumbprint( cert_file)
+  end
+
+  def uuid_to_bin( uuid_string )
+    uuid_string.gsub( /[^0-9A-Fa-f]/, '' )[ 0..31 ].to_a.pack 'H*'
+  end
+  
+  def stripped( pem )
+    pem.gsub( /-----(BEGIN|END) CERTIFICATE-----\n/, '' ).chomp
+  end
+end # DCTools
+include DCTools
+
+
+###
+
+
+####											####
+####											####
+####				H I E R   G E H T S   L O S				####
+####											####
+####											####
+
+
+
+# reconstruct original commandline for readme file
+commandline = File.basename( $0 )
+ARGV.each do |arg|
+  if arg =~ /.+\s.+/
+    commandline += ' ' + '"' + arg + '"'
+  else
+    commandline += ' ' + arg
+  end
+end
+CINEMASLIDES_COMMANDLINE =  commandline
+# destructive parse
+@options = OptParser::Optparser.parse(ARGV)
+
+@logger = Logger::Logger.instance
+@logger.set_prefix_verbosity( prefix = '*', @options.verbosity )
+
+  
+
+@logger.info( "#{ AppName } #{ AppVersion }" )
+# cinemaslides requires ruby 1.8.7 and will not work with > 1.9, yet.
+# the changes required for 1.9 are subtle. just haven't gotten around to it, yet. coming up
+if RUBY_VERSION < '1.8.7' or RUBY_VERSION >= '1.9'
+  @logger.info( "#{ AppName } requires ruby >= 1.8.7 and < 1.9. Your ruby version: #{ RUBY_VERSION }" )
+  exit
+end
+@logger.debug( commandline )
+
+
+
+### KDM mode
+# lässt sich nicht ganz leicht in output_type integrieren
+if @options.kdm
+  @output_type_obj = OutputType::KDMOutputType.new(mandatories[OptParser::OUTPUT_TYPE_CHOICE_KDM])
+  kdm_creator = KDM_Gen::KDMCreator.new(
+      annotation = @options.annotation,
+      issuer     = @options.issuer,
+      kdm_cpl    = @options.kdm_cpl,
+      kdm_start  = @options.kdm_start,
+      kdm_end    = @options.kdm_end,
+      kdm_target = @options.kdm_target,
+      verbosity  = @options.verbosity,
+      output_type_obj = @output_type_obj
+      )
+  kdm_creator.create_KDM
+  exit
+end ### KDM mode
+
+exit if !OptParser::Optparser.output_type_option_ok?
+exit if !OptParser::Optparser.input_type_option_ok?
+
+# hier wird die richtige Klasse z.B. preview oder dcp geladen
+@output_type_obj = OutputType.const_get(output_type_classnames[@options.output_type]).new( mandatory = mandatories[@options.output_type])
+
+exit if !OptParser::Optparser.aspect_option_ok?
+exit if !OptParser::Optparser.size_option_ok?
+exit if !OptParser::Optparser.dcp_related_options_ok?
+exit if !OptParser::Optparser.dcp_related_options_ok?
+exit if !OptParser::Optparser.set_and_check_transition_and_timing_option?
+exit if !@output_type_obj.all_mandatory_tools_available?
+OptParser::Optparser.set_and_check_fps_option
+OptParser::Optparser.set_size
+OptParser::Optparser.set_black_options
+OptParser::Optparser.set_output_format_option
+
+@input_type = InputType.const_get(input_type_classnames[@options.input_type]).new(
+  source = ARGV,
+  dont_check = @options.dont_check,
+  dont_drop = @options.dont_check,
+  transition_and_timing = @options.transition_and_timing)
+
+@source, @source_audio, no_decode_delegate, files_ok  = @input_type.seperate_and_check_files
+exit if !files_ok
+
+
+# hier wird dann je nach Klasse ein preview oder ein dcp erzuegt.
+@output_type_obj.create_output_type( 
+  source       = @source, 
+  source_audio = @source_audio, 
+  signature_context = X509Certificate::X509CertificateChain.new(ENV[ 'CINEMACERTSTORE' ]))
+
+
+
+
+TODO = <<TODO
+
+FIXME certificate handling and KDM mode, although working, need re-design to allow for more flexibility
+FIXME output some basic help message when app is called without any args. as it is app merely utters 'No image files specified'
+FIXME calculates message digest twice when building an encrypted package (for CPL and PKL)
+FIXME fps and --wrap-stereoscopic not in total harmony yet
+FIXME generic readme/report output
+FIXME check write completion on slow media (with -o | --dcp-out)
+FIXME cleanup dcpdir after montage summary exit (with -o ...)
+FIXME sox, what's taking you so long? conform_audio()
+FIXME projected length <- frames cast
+FIXME estimate required/check available disk space
+FIXME See $ cinemaslides 01.jpg 02.jpg -x crossfade,1,0 (temporary @framecount fix in full_level())
+FIXME verbosity level "info" -> jpeg 2000 encoder talk
+FIXME crossfades border case: 0.0416666666666667 (1/24) crossfade time -> level shoots off the roof
+FIXME gamma diff on resize: don't conform images with target dimensions
+FIXME how to detect optimal -vo for mplayer?
+FIXME crossfade,5,0 [5 images] -> 720 frames intended 725 frames created
+FIXME cinemaslides multipage.pdf is somewhat borked because of assets creation (name), conforms to <digest>_<dimensions>_-<page_number>.jpg
+      which won't fly at pickup time
+
+FEATURE look at resize/don't resize thresholds in order to do the "right" thing for mixed source. bit shaky maybe.
+FEATURE look at polynomial-constrained fades
+FEATURE option to request linear/s-curved/... transitions for comparison (well, for showing off, basically, how nice the sigmoid function works for transitions)
+FEATURE sparse assets via minimum mxfs and playlists
+FEATURE 3D
+FEATURE custom preview sizes
+FEATURE black/mono pause between slides
+FEATURE transition times and duration are global. make them file specific
+FEATURE DCP naming conventions
+FEATURE MPEG MXFI
+
+CODE slideshow objects
+CODE options catch all (missing arguments trace back deep)
+CODE better way to check for and provide requirements alternatives ( mplayer|ffplay, openjpeg|kakadu, signature related )
+
+TODO
+
