@@ -13,13 +13,19 @@ module OptParser
   TRANSITION_CHOICE_CROSSFADE = 'crossfade'
   INPUT_TYPE_CHOICE_SLIDE = 'slideshow'
   INPUT_TYPE_CHOICE_AV = 'avcontainer'
+  CONTAINER_SIZE_2K = '2k'
+  CONTAINER_SIZE_4K = '4k'
+  ASPECT_CHOICE_FLAT = 'flat'
+  ASPECT_CHOICE_SCOPE = 'scope'
+  ASPECT_CHOICE_HD = 'hd'
+  SAMPLE_RATE_CHOICE_48000 = '48000'
+  SAMPLE_RATE_CHOICE_48K   = '48k'
+  SAMPLE_RATE_CHOICE_96000 = '96000'
+  SAMPLE_RATE_CHOICE_96K   = '96k'
 
-  # FIXME weitere Konstanten
-  # options.size_choices = [ '2k', '4k' ]
-  # options.aspect_choices = [ 'flat', 'scope', 'hd', Regexp.new( '\d+(\.\d+)?x\d+(\.\d+)?' ) ]
+  # FIXME further constants
   #     options.fps_dcp_choices = [ 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ]
   #  options.fps_asdcp_choices = [ 23.976, 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ] # 24000/1001 not DCI compliant but shows up in asdcplib. Why?
-  #    options.audio_samplerate_choices = [ '48000', '48k', '96000', '96k' ]
   #  options.audio_bps_choices = [ '16', '24' ]
   #  options.dcp_kind_choices = [ 'feature', 'trailer', 'test', 'teaser', 'rating', 'advertisement', 'short', 'transitional', 'psa', 'policy' ]
   #  options.dcp_color_transform_matrix_choices = [ 'iturec709_to_xyz', 'srgb_to_xyz', '709', 'srgb', Regexp.new( '(\d+(\.\d+)?\s*){9,9}' ) ]
@@ -37,10 +43,10 @@ class Optparser
     options = OpenStruct.new
     options.output_type = OUTPUT_TYPE_CHOICE_PREVIEW
     options.output_type_choices = [ OUTPUT_TYPE_CHOICE_PREVIEW, OUTPUT_TYPE_CHOICE_FULLPREVIEW, OUTPUT_TYPE_CHOICE_DCP ]
-    options.size = '2k'
-    options.size_choices = [ '2k', '4k' ]
-    options.aspect = 'flat'
-    options.aspect_choices = [ 'flat', 'scope', 'hd', Regexp.new( '\d+(\.\d+)?x\d+(\.\d+)?' ) ] # custom aspect ratios: match '<numeric>x<numeric>'
+    options.size = CONTAINER_SIZE_2K
+    options.size_choices = [ CONTAINER_SIZE_2K, CONTAINER_SIZE_4K ]
+    options.aspect = ASPECT_CHOICE_FLAT
+    options.aspect_choices = [ ASPECT_CHOICE_FLAT, ASPECT_CHOICE_SCOPE, ASPECT_CHOICE_HD, Regexp.new( '\d+(\.\d+)?x\d+(\.\d+)?' ) ] # custom aspect ratios: match '<numeric>x<numeric>'
     options.aspect_malformed = FALSE
     options.resize = TRUE # option to _not_ resize images (useful for images which are close to target dimensions and would suffer from scaling/-resize)
     options.fps = 24.0
@@ -52,8 +58,8 @@ class Optparser
     options.black = 0.0
     options.black_leader = NIL
     options.black_tail = NIL
-    options.audio_samplerate = 48000
-    options.audio_samplerate_choices = [ '48000', '48k', '96000', '96k' ]
+    options.audio_samplerate = SAMPLE_RATE_CHOICE_48000.to_i
+    options.audio_samplerate_choices = [ SAMPLE_RATE_CHOICE_48000, SAMPLE_RATE_CHOICE_48K, SAMPLE_RATE_CHOICE_96000, SAMPLE_RATE_CHOICE_96K ]
     options.audio_bps = 24
     options.audio_bps_choices = [ '16', '24' ]
     options.dcp_title = 'Cinemaslides test'
@@ -112,14 +118,14 @@ BANNER
       end
 
       
-      opts.on( '-k', '--size resolution', String, "Use '2k' or '4k' (Default: 2k)" ) do |p|
+      opts.on( '-k', '--size resolution', String, "Use '#{CONTAINER_SIZE_2K}' or '#{CONTAINER_SIZE_4K}' (Default: #{CONTAINER_SIZE_2K})" ) do |p|
         if options.size_choices.include?( p.downcase )
           options.size = p.downcase
         else
           options.size = 'catch:' + p.downcase
         end
       end
-      opts.on( '-a', '--aspect ratio', String, "For standard aspect ratios use 'flat', 'scope' or 'hd' (Default: flat). You can also experiment with custom aspect ratios by saying '<width>x<height>'. The numbers given will be scaled to fit into the target container (Default size or specified with '--size')." ) do |p|
+      opts.on( '-a', '--aspect ratio', String, "For standard aspect ratios use '#{ASPECT_CHOICE_FLAT}', '#{ASPECT_CHOICE_SCOPE}' or '#{ASPECT_CHOICE_HD}' (Default: #{ASPECT_CHOICE_FLAT}). You can also experiment with custom aspect ratios by saying '<width>x<height>'. The numbers given will be scaled to fit into the target container (Default size or specified with '--size')." ) do |p|
         if options.aspect_choices.include?( p.downcase )
           options.aspect = p.downcase
         elsif p.match( options.aspect_choices.last )
@@ -156,13 +162,13 @@ BANNER
       opts.on( '--bt', '--black-tail seconds', Float, 'Length of black tail (Default: 0)' ) do |p|
         options.black_tail = p
       end
-      opts.on( '-r', '--samplerate rate', String, "Audio samplerate. Use '48000', '48k', '96000' or '96k' (Default: 48k)" ) do |p|
+      opts.on( '-r', '--samplerate rate', String, "Audio samplerate. Use '#{SAMPLE_RATE_CHOICE_48000}', '#{SAMPLE_RATE_CHOICE_48K}', '#{SAMPLE_RATE_CHOICE_96000}' or '#{SAMPLE_RATE_CHOICE_96K}' (Default: #{SAMPLE_RATE_CHOICE_48000})" ) do |p|
         if options.audio_samplerate_choices.include?( p.downcase )
           case p.downcase
-          when '48000', '48k'
-            options.audio_samplerate = 48000
-          when '96000', '96k'
-            options.audio_samplerate = 96000
+          when SAMPLE_RATE_CHOICE_48000, SAMPLE_RATE_CHOICE_48K
+            options.audio_samplerate = SAMPLE_RATE_CHOICE_48000.to_i
+          when SAMPLE_RATE_CHOICE_96000, SAMPLE_RATE_CHOICE_96K
+            options.audio_samplerate = SAMPLE_RATE_CHOICE_96000.to_i
           end
         end
       end

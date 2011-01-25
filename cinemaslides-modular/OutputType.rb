@@ -13,6 +13,7 @@ module OutputType
   require 'MXF'
   require 'SMPTE_DCP'
   
+  
   ShellCommands = ShellCommands::ShellCommands
   SRGB_TO_XYZ = "0.4124564 0.3575761 0.1804375 0.2126729 0.7151522 0.0721750 0.0193339 0.1191920 0.9503041"
   ITUREC709_TO_XYZ = "0.412390799265959  0.357584339383878  0.180480788401834 0.21263900587151 0.715168678767756 0.0721923153607337 0.0193308187155918 0.119194779794626 0.950532152249661"
@@ -290,11 +291,11 @@ module OutputType
       container_height = 540.0 * container_multiplier
       @logger.debug( "Container: #{ container_width } x #{ container_height } (1k multiplier: #{ container_multiplier })" )
       case @options.aspect
-      when 'flat' # 1.85 : 1
+      when OptParser::ASPECT_CHOICE_FLAT # 1.85 : 1
 	width, height = 999, 540 # 1.85
-      when 'scope' # 2.39 : 1
+      when OptParser::ASPECT_CHOICE_SCOPE # 2.39 : 1
 	width, height = 1024, 429 # 2.38694638694639
-      when 'hd' # 1.77 : 1
+      when OptParser::ASPECT_CHOICE_HD # 1.77 : 1
 	width, height = 960, 540 # 1.77777777777778
       else # Custom aspect ratio
 	custom_width, custom_height = @options.aspect.split( 'Custom aspect ratio:' ).last.split( 'x' )

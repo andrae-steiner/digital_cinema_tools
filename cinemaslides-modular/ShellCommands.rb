@@ -150,8 +150,8 @@ module ShellCommands
     def self.openssl_rsautl_base_64( target, path)
       `openssl rsautl -encrypt -oaep -certin -inkey #{ target } -in #{ path } | openssl base64`
     end
-    def self.opendcp_j2k_command( file, asset, fps )
-      `opendcp_j2k -i #{ file } -o #{ asset } -r #{ fps }`
+    def self.opendcp_j2k_command( file, asset, additional_options )
+      `opendcp_j2k -i #{ file } -o #{ asset } #{ additional_options }`
     end
     def self.kakadu_encode_command( file, asset, profile, max_bpi, max_bpc)
       `kdu_compress -i #{ file } -o #{ asset } Sprofile=#{ profile } Creslengths=#{ max_bpi } Creslengths:C0=#{ max_bpi },#{ max_bpc } Creslengths:C1=#{ max_bpi },#{ max_bpc } Creslengths:C2=#{ max_bpi },#{ max_bpc }`

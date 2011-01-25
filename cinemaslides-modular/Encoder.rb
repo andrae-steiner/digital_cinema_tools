@@ -1,6 +1,7 @@
 module Encoder
   
   require 'ShellCommands'
+  require 'OptParser'
   ShellCommands = ShellCommands::ShellCommands
 
     class Encoder
@@ -16,19 +17,24 @@ module Encoder
     class Openjpeg_Tm_Encoder < Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
+	if OptParser::CONTAINER_SIZE_2K
+	  @profile = '-p cinema2K -r  #{ stereo ? 48 : fps }'
+	elsif size == OptParser::CONTAINER_SIZE_4K
+	  @profile = '-p cinema4K'
+	end
       end
       def encode(file, asset)
-	ShellCommands.opendcp_j2k_command( file, asset, fps )
+	ShellCommands.opendcp_j2k_command( file, asset, @profile )
       end
     end
     
     class Kakadu_Encoder < Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
-	if size == "2k"
-	  @profile = "CINEMA2K"
-	elsif size == "4k"
-	  @profile = "CINEMA4K"
+	if size == OptParser::CONTAINER_SIZE_2K
+	  @profile = 'CINEMA2K'
+	elsif size == OptParser::CONTAINER_SIZE_4K
+	  @profile = 'CINEMA4K'
 	end
 	@max_bytes_per_image, @max_bytes_per_component = jpeg2000_dcp_rate_constraints( stereo ? 48.0 : fps )
       end
@@ -50,10 +56,10 @@ module Encoder
     class Openjpeg_Encoder < Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
-	if size == "2k"
-	  @profile = "cinema2K #{ stereo ? 48 : fps }"
-	elsif size == "4k"
-	  @profile = "cinema4K"
+	if size == OptParser::CONTAINER_SIZE_2K
+	  @profile = 'cinema2K #{ stereo ? 48 : fps }'
+	elsif size == OptParser::CONTAINER_SIZE_4K
+	  @profile = 'cinema4K'
 	end
       end
       def encode(file, asset)
