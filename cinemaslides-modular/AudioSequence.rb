@@ -62,11 +62,7 @@ module AudioSequence
       end
       
       # match for sequence_audio_asset is based on image sequence length and sha1 digest of conformed_audio_list's elements (assets) joined into 1 string
-      set = Array.new
-      conformed_audio_list.each do |e|
-	set << File.basename( e )
-      end
-      
+
       # c) splice d) trim
       
       conform_sequence_audio(conformed_audio_list,  "_.wav")

@@ -130,7 +130,7 @@ module KDM_Gen
       else
 	cinamecertstore = ENV[ 'CINEMACERTSTORE' ]
 	@logger.debug( "CINEMACERTSTORE is set to #{ cinamecertstore }" )
-	if File.exists?( cinamecertstore ) and File.ftype( cinamecertstore ) == 'directory'
+	if File.is_directory?( cinamecertstore )
 	  
 	  @signature_context = X509Certificate::X509CertificateChain.new(cinamecertstore)
 	  
@@ -144,7 +144,7 @@ module KDM_Gen
       
       # check for key directory
       @keysdir = File.join( @output_type_obj.cinemaslidesdir, 'keys' )
-      if ( File.exists?( @keysdir ) and File.ftype( @keysdir ) == 'directory' )
+      if File.is_directory?( @keysdir )
 	@logger.debug( "Content keystore at: #{ @keysdir }" )
       else
 	@logger.info( "No content keystore found (Looking for #{ @keysdir })" )
@@ -264,7 +264,7 @@ module KDM_Gen
 	kdm_no_go << 'No CPL'
       else
 	# Get CPL info
-	if File.exists?( @kdm_cpl ) and File.ftype( @kdm_cpl ) == 'file'
+	if File.is_file?( @kdm_cpl )
 	  xml_obj = Nokogiri::XML( File.read( @kdm_cpl ) )
 	  xsd = Nokogiri::XML::Schema(File.read(CPL_XSD))
 	  if !xsd.valid?(xml_obj)
@@ -341,7 +341,7 @@ module KDM_Gen
 	@logger.info( "No target certificate specified. Use --target <certificate>" )
 	kdm_no_go << 'No target'
       else
-	if File.exists?( @kdm_target ) and File.ftype( @kdm_target ) != 'directory'
+	if File.is_directory?( @kdm_target )
 	  begin
 	    recipient = Recipient.new( @kdm_target)
 		    

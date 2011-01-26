@@ -86,6 +86,22 @@ require 'SMPTE_DCP'
 
 include TimeDateUtils
 
+class File
+  def self.is_directory?( file)
+    File.exists?( file ) and File.ftype( file ) == 'directory'
+  end
+  def self.is_file?( file)
+    File.exists?( file ) and File.ftype( file ) == 'file'
+  end
+  def self.is_XML_file?( file )
+    fh = File.open( file, 'r' )
+    fh_line = fh.read( 19 )
+    fh.close
+    fh_line =~ /^<\?xml version="1.0"/  # TODO recognizes only v 1.0 xml
+  end
+
+end
+
 def key_types
   { SMPTE_DCP::MAIN_PICTURE_ASSET_TYPE => 'MDIK', 
     SMPTE_DCP::MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE => 'MDIK', 

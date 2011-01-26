@@ -82,7 +82,7 @@ module X509Certificate
       root_ca = NIL
       
       files.each do |file|
-	if File.ftype( file ) == 'file'
+	if File.is_file( file )
 	  begin
 	    certs << OpenSSL::X509::Certificate.new( File.read( file ) )
 	    @logger.debug( certs.last.subject.to_s )

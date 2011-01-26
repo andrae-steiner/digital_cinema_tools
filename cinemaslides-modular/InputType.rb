@@ -9,7 +9,15 @@ module InputType
       @logger = Logger::Logger.instance
       @source = source
     end
+    # seperates files into three categories
+    # imagesequence, audio and files with no code delegate
+    # and returns an array with arrays of these files
+    # so if you want to use this class to seperate a videofile
+    # with sound, this seperate function has to seperate the sound from the video
+    # and to convert the video into an imagesequence
     def seperate_and_check_files
+      # seperate and check files
+      # return [ [images], [audiofiles], [no_code_delagate_files] ]
       raise NotImplementedError, "Do not instanciate this abstract class: InputType"
     end
   end
@@ -49,8 +57,7 @@ module InputType
 	source_tmp = Array.new
 	@source.each do |element|
 	  if File.exists?( element )
-	    ftype = File.ftype( element )
-	    if ftype == 'directory'
+	    if File.is_directory?( element )
 	      more = Dir.glob( "#{ element }/*" ).sort # this breaks fast (subdirs)
 	      source_tmp << more
 	    else

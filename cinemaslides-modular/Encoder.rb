@@ -17,7 +17,7 @@ module Encoder
     class Openjpeg_Tm_Encoder < Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
-	if OptParser::CONTAINER_SIZE_2K
+	if size == OptParser::CONTAINER_SIZE_2K
 	  @profile = '-p cinema2K -r  #{ stereo ? 48 : fps }'
 	elsif size == OptParser::CONTAINER_SIZE_4K
 	  @profile = '-p cinema4K'

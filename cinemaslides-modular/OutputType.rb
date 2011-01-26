@@ -491,7 +491,7 @@ module OutputType
 	rating_list = nil
       )
       smpte_dcp.write_ov_dcp
-     
+           
       # readme and report
       readme_file_name = @options.annotation.gsub( /[\\\/\&: ]/, '_' ) + '.readme'
       readme_file_path = File.join( @options.dcpdir, readme_file_name )
