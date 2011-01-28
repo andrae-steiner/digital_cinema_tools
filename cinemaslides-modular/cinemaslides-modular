@@ -99,7 +99,19 @@ class File
     fh.close
     fh_line =~ /^<\?xml version="1.0"/  # TODO recognizes only v 1.0 xml
   end
-
+  def self.set_cinemaslidesdir
+    @logger = Logger::Logger.instance
+    if ENV[ 'CINEMASLIDESDIR' ].nil?
+      @cinemaslidesdir = File.join( ENV[ 'HOME' ], "cinemaslidesdir" )
+      @logger.debug( "CINEMASLIDESDIR not set. Will use #{ @cinemaslidesdir }" )
+    else
+      @logger.debug( "CINEMASLIDESDIR is set to #{ ENV[ 'CINEMASLIDESDIR' ] }" )
+      @cinemaslidesdir = ENV[ 'CINEMASLIDESDIR' ]
+    end
+  end
+  def self.get_cinemaslidesdir
+    @cinemaslidesdir
+  end
 end
 
 def key_types
@@ -232,6 +244,7 @@ include DCTools
 ####											####
 
 
+File.set_cinemaslidesdir
 
 # reconstruct original commandline for readme file
 commandline = File.basename( $0 )

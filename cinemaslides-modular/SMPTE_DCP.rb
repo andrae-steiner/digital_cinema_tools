@@ -133,6 +133,7 @@ module SMPTE_DCP
       @logger = Logger::Logger.instance
       @signature_context = signature_context
       @cpls = Array.new
+      @dcp_reels = Array.new
     end # def 
     
     def add_cpl( dcp_reels, content_title, content_kind, rating_list )      
@@ -147,6 +148,7 @@ module SMPTE_DCP
 	cpl = cpl_new
       end # if
       @cpls << CPLInfo.new(cpl_uuid, cpl.xml)
+      @dcp_reels << dcp_reels
     end # def 
     
     def write_vf_dcp (other_dcp_asset_list)
@@ -197,6 +199,7 @@ module SMPTE_DCP
       @pkl_assets = Array.new
       
       # TODO future: for subtitles
+      # TODO future: also the fons used in the subtitles have to go into the asset and packing list
       @pkl_assets << Dir.glob( File.join( @dcpdir, 'subtitle_*_.xml' ) )
       
       @pkl_assets << Dir.glob( File.join( @dcpdir, 'cpl_*_.xml' ) )
@@ -253,6 +256,7 @@ module SMPTE_DCP
 	    assets.each do |asset|
 	      if File.is_XML_file?(asset)
 		mimetype = 'text/xml'
+	        # TODO What is with subtitles here
 		asset_uuid = Nokogiri::XML( File.open( asset ) ).xpath( "//xmlns:CompositionPlaylist/xmlns:Id" ).text.split( 'urn:uuid:' ).last
 	      else
 		mimetype = 'application/mxf'
@@ -350,6 +354,7 @@ module SMPTE_DCP
   end # DCST_SMPTE_428_7_2007 
   
   class CPL_SMPTE_429_7_2006
+    attr_reader :uuid
     def initialize( cpl_uuid, dcp_reels, dcp_common_info, content_title, content_kind, content_version_id, content_version_label, rating_list )
       @logger = Logger::Logger.instance
       @logger.debug("CPL_SMPTE_429_7_2006 init: content_version_id = #{ content_version_id }")
@@ -377,7 +382,8 @@ module SMPTE_DCP
 	      subtitle_asset = dcp_reel.subtitle_asset
 	                
 	      xml.Reel_ {
-		xml.Id_ "urn:uuid:#{ ShellCommands.uuid_gen }" # FIXME
+	        @uuid = ShellCommands.uuid_gen
+		xml.Id_ "urn:uuid:#{ uuid }" # FIXME
 		xml.AssetList_ {
 			# TODO intrinsicduration  leader  trailer
 	                # Take care. In Reality intrinsic duration is the real length

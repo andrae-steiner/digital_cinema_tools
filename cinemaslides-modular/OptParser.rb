@@ -373,10 +373,6 @@ EXAMPLES
       logger.info( "Specify input type: slideshow or avcontainer" )
       return FALSE
     end
-    if @@options.input_type == INPUT_TYPE_CHOICE_AV
-      logger.info( "avcontainer inputtype not yet implemented")
-      return FALSE
-    end
     TRUE
   end
 

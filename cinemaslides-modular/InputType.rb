@@ -14,7 +14,8 @@ module InputType
     # and returns an array with arrays of these files
     # so if you want to use this class to seperate a videofile
     # with sound, this seperate function has to seperate the sound from the video
-    # and to convert the video into an imagesequence
+    # and to convert the video into an imagesequence.
+    # Fading has to be set to cut and duration to 0.041666667.
     def seperate_and_check_files
       # seperate and check files
       # return [ [images], [audiofiles], [no_code_delagate_files] ]
@@ -22,6 +23,35 @@ module InputType
     end
   end
   
+  # TODO this is just do show, that it is possible, nothing final
+  # fps fixed to 24, should be obtained from avcoontainer
+  # Maybe better name for image_output_dir and audio_from_av should be chosen.
+  # The concept of assets should also be chosen here, that means an image sequence 
+  # should be created only once
+  class AVContainerInputType < InputType
+    def initialize (avfile, dont_check, dont_drop, transition_and_timing)
+      @logger = Logger::Logger.instance
+      @avfile = avfile
+      @cinemaslidesdir = File.get_cinemaslidesdir
+      @options = OptParser::Optparser.get_options     
+      @options.fade_in_time = 0
+      @options.duration = 0.04166666667
+      @options.fade_out_time = 0
+    end
+    def seperate_and_check_files
+      if @avfile.empty?
+	@logger.info( 'No files specified' )
+	return Array.new, Array.new, Array.new, FALSE
+      end
+      @image_output_dir = File.join(@cinemaslidesdir, "tif_from_av_#{ get_timestamp }")
+      Dir.mkdir( @image_output_dir )
+      @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_.wav")
+      `ffmpeg -y -i "#{ @avfile }" -an -r 24  -threads 8 -b 10000k #{File.join(@image_output_dir, "%06d.tif")}`
+      `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 24 -ar 48000 #{ @audio_from_av }`
+      return Dir.glob( "#{ @image_output_dir }/*" ).sort,  [@audio_from_av], nil, TRUE
+    end
+  end
+
   class SlideshowInputType < InputType
     
     def initialize( source, dont_check, dont_drop, transition_and_timing )
@@ -147,8 +177,4 @@ module InputType
 
   end #class
   
-  # TODO
-  class AVContainerInputType < InputType
-  end
-
 end

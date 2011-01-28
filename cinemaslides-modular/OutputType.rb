@@ -56,13 +56,7 @@ module OutputType
       @options = OptParser::Optparser.get_options            
       @logger = Logger::Logger.instance
       @mandatory = mandatory
-      if ENV[ 'CINEMASLIDESDIR' ].nil?
-	@cinemaslidesdir = File.join( ENV[ 'HOME' ], "cinemaslidesdir" )
-	@logger.debug( "CINEMASLIDESDIR not set. Will use #{ @cinemaslidesdir }" )
-      else
-	@logger.debug( "CINEMASLIDESDIR is set to #{ ENV[ 'CINEMASLIDESDIR' ] }" )
-	@cinemaslidesdir = ENV[ 'CINEMASLIDESDIR' ]
-      end
+      @cinemaslidesdir = File.get_cinemaslidesdir
     end  
     
     def all_mandatory_tools_available?

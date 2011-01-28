@@ -90,7 +90,9 @@ module Asset
 	assetname, origin = assetname, origin
       end
     end
-    
+    # TODO: take cate: this is only a filenamehash
+    # if you want an exact hash for only the image date use
+    # `identify -format '%#' #{ filename }` instead
     def filename_hash( file)
       ShellCommands.sha1sum_command( file )
     end
