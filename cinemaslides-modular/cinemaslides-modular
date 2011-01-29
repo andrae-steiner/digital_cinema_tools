@@ -198,7 +198,7 @@ module DCTools
   end
   
   def asdcp_digest( file )
-    ShellCommands::ShellCommands.openssl_sha1_64( file ).chomp
+    ShellCommands::ShellCommands.openssl_sha1_64( file.to_s ).chomp
     
     # equiv. `openssl dgst -sha1 -binary #{ file } | openssl base64`.chomp
     
@@ -209,6 +209,11 @@ module DCTools
     # andrae.steiner@liwest.at
     
   end
+  
+  def asdcp_digest_string (string)
+    ShellCommands::ShellCommands.openssl_sha1_64_string( string ).chomp
+  end
+                    
   
   def cipher_data_payload_binary_package( signer_cert_thumbprint, cpl_id, key_type, key_id, kdm_not_valid_before, kdm_not_valid_after, key )
     structure_id_bin = %w( f1 dc 12 44 60 16 9a 0e 85 bc 30 06 42 f8 66 ab ).pack( 'H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2' )
@@ -245,6 +250,11 @@ include DCTools
 
 
 File.set_cinemaslidesdir
+
+#"asasasa".to_s
+#ast = Array.new
+#ast << File.new("/home/home-10.1/Documents/Programmkino/DCP-TEST/Untertitel/Maener_al_Dente_dtUt_R4.xml")
+#puts ast[0].class
 
 # reconstruct original commandline for readme file
 commandline = File.basename( $0 )

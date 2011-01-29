@@ -1,5 +1,6 @@
 module SMPTE_DCP
 
+  require 'ftools'
   require 'MXF'
   require 'ShellCommands'
   require 'DCSignature'
@@ -11,6 +12,9 @@ module SMPTE_DCP
   MAIN_SOUND_ASSET_TYPE = 'MainSound'
   MAIN_SUBTITLE_ASSET_TYPE = 'MainSubtitle'
   CPL_ASSET_TYPES = [ MAIN_PICTURE_ASSET_TYPE, MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE, MAIN_SOUND_ASSET_TYPE, MAIN_SUBTITLE_ASSET_TYPE ]
+  MIMETYPE_MXF = "application/mxf"
+  MIMETYPE_XML = "text/xml"
+  MIMETYPE_TTF = "application/x-font-ttf"
     
   class DCPCommonInfo
     attr_reader :issuer, :creator, :annotation, :sign
@@ -31,18 +35,47 @@ module SMPTE_DCP
   end # class
   
   class DCPAsset
-    attr_reader :asset
+    attr_reader   :asset  # is a  filename, the file isnot necessarily written yet
+    attr_accessor :id     # is an uuid
+    attr_accessor :mimetype, :asset_hash, :packinglist, :size
     def initialize (asset)
       @asset = asset
+      @packinglist = FALSE
       @logger = Logger::Logger.instance
     end # def
+    def self.create_asset(asset, id, mimetype, asset_hash, size, packinglist)
+      asset = DCPAsset.new( asset )
+      asset.id = id
+      asset.mimetype = mimetype
+      asset.asset_hash = asset_hash
+      asset.size = size
+      asset.packinglist = packinglist
+      return asset
+    end
   end # class
   
-  class DCPSubtitleAsset < DCPAsset
-    attr_reader :id, :edit_rate, :asset_hash, :entry_point, :duration, :intrinsic_duration
+  # class for all assets listed in a packing list
+  # Beware: dont create a DCPPKLAsset object for a packing list
+  # This class is for Assets that go into a packing list
+  # and not for packing lists themselves
+  class DCPPKLAsset < DCPAsset
+    def self.create_asset(asset, id, mimetype, asset_hash, size)
+      asset = DCPPKLAsset.new( asset )
+      asset.id = id
+      asset.mimetype = mimetype
+      asset.asset_hash = asset_hash
+      asset.size = size
+      return asset
+    end
+  end
+  
+  class DCPSubtitleAsset < DCPPKLAsset
+    attr_reader :edit_rate, :entry_point, :duration, :intrinsic_duration
     def initialize( asset, edit_rate = 0, intrinsic_duration = 0, entry_point = 0, duration = 0)
       super( asset )
       @id = get_subtitle_id(asset) #
+      @mimetype = MIMETYPE_XML
+      @size = File.size(asset)
       @edit_rate = edit_rate
       @intrinsic_duration = intrinsic_duration
       @entry_point = entry_point
@@ -52,11 +85,11 @@ module SMPTE_DCP
     
     private 
     
-    def get_subtitle_id(asseet)
-      xml = Nokogiri::XML( File.open( asset ) )
+    def get_subtitle_id(asset)
+      xml = Nokogiri::XML(  File.open( asset )  )
       id1 = xml.xpath( '//DCSubtitle/SubtitleID' ).text.gsub( ' ', '' )
       if id1.nil?
-	id1 = xml.xpath( '//xmlns:SubtitleReel/xmlns:Id' ).textgsub( ' ', '' )
+	id1 = xml.xpath( '//xmlns:SubtitleReel/xmlns:Id' ).text.gsub( ' ', '' )
       end # if
       @logger.debug("Subtitle Id = #{ id1 }.")
       id1
@@ -64,13 +97,15 @@ module SMPTE_DCP
     
   end # class
   
-  class DCPMXFAsset < DCPAsset
-    attr_reader :id, :intrinsic_duration, :key_id, :asset_hash, :encrypted, :stereoscopic
+  class DCPMXFAsset < DCPPKLAsset
+    attr_reader :intrinsic_duration, :key_id, :encrypted, :stereoscopic
     attr_accessor :entry_point, :duration
     def initialize (asset)
       super(asset)
       @asset_meta = MXF::MXF_Metadata.new( asset ).hash
       @id =  @asset_meta[ MXF::MXF_KEYS_ASSETUUID ]
+      @mimetype = MIMETYPE_MXF
+      @size = File.size(asset)
       @intrinsic_duration = @asset_meta[ MXF::MXF_KEYS_CONTAINER_DURATION ]
       @entry_point = 0
       @duration = @asset_meta[ MXF::MXF_KEYS_CONTAINER_DURATION ]
@@ -113,11 +148,11 @@ module SMPTE_DCP
       @image_mxf = image_asset.asset
       @subtitle_xml = subtitle_asset.nil? ? nil : subtitle_asset.asset
     end # def 
-    def asset_names_to_a
+    def assets_to_a
       a = Array.new
-      a << @image_mxf
-      a << @audio_mxf if !@audio_mxf.nil?
-      a << @subtitle_xml if !@subtitle_xml.nil?
+      a << @image_asset
+      a << @audio_asset if !@audio_asset.nil?
+      a << @subtitle_asset if !@subtitle_asset.nil?
       return a
     end # def 
   end # class
@@ -133,9 +168,22 @@ module SMPTE_DCP
       @logger = Logger::Logger.instance
       @signature_context = signature_context
       @cpls = Array.new
-      @dcp_reels = Array.new
+      @packing_list = Array.new  # all the elements that go into a packing list
     end # def 
     
+    # Add a font needed for subtitles to a DCP
+    def add_font(font_filename, mimetype)
+      font_filename2 = File.join( @dcpdir, File.basename(font_filename) )
+      File.copy(font_filename, font_filename2)
+      @packing_list << DCPPKLAsset.create_asset( 
+	font_filename2,
+	ShellCommands.uuid_gen,
+	mimetype,
+	asdcp_digest( font_filename2 ),
+	File.size(font_filename2))
+    end
+    
+    # Add a CPL to DCP
     def add_cpl( dcp_reels, content_title, content_kind, rating_list )      
       cpl_uuid = ShellCommands.uuid_gen # FIXME
       @logger.debug("add_cpl: cpl_uuid = #{ cpl_uuid }")
@@ -148,28 +196,35 @@ module SMPTE_DCP
 	cpl = cpl_new
       end # if
       @cpls << CPLInfo.new(cpl_uuid, cpl.xml)
-      @dcp_reels << dcp_reels
+            
+      # add assets of this dcp and the dcp itsself to the packing list
+      dcp_reels.each do |reel| @packing_list << reel.assets_to_a end
+      @packing_list << DCPPKLAsset.create_asset( 
+	File.join( @dcpdir, 'cpl_' + cpl_uuid + '_.xml' ),
+	cpl_uuid, 
+	MIMETYPE_XML,
+	asdcp_digest_string( cpl.xml ), 
+	cpl.xml.length )
     end # def 
     
+    # Write a version file DCP.
+    # This methos is called after one or more calls to add_cpl/add_font
     def write_vf_dcp (other_dcp_asset_list)
-      # write_vf_dcp = version file dcp
-      # PKL: only files of this dir.
-      #      if a file is referenced in a cpl and that file is not in this dir
-      #      exclude from packinglist. Automatically done.
-      # ASSETLIST: assetlist of other_dcp_dir plus assets from this dir
       @cpls.each do |cpl|
 	 @logger.info( 'Write CPL' )
 	 @logger.debug( "CPL UUID:       #{ cpl.uuid }" )
          cpl_file = File.join( @dcpdir, 'cpl_' + cpl.uuid + '_.xml' )
 	 File.open( cpl_file, 'w' ) { |f| f.write( cpl.cpl_xml ) }
       end # each 
-      write_pkl
+      create_and_write_pkl
       create_am
       # Write Assetmap
       @logger.info( 'Write ASSETMAP' )
       File.open( @am_file, 'w' ) { |f| f.write( @am.merge(other_dcp_asset_list).xml ) }
     end # def 
     
+    # Write a original version DCP.
+    # This methos is called after one or more calls to add_cpl/add_font
     def write_ov_dcp
       @cpls.each do |cpl|
 	 @logger.info( 'Write CPL' )
@@ -177,54 +232,66 @@ module SMPTE_DCP
          cpl_file = File.join( @dcpdir, 'cpl_' + cpl.uuid + '_.xml' )
 	 File.open( cpl_file, 'w' ) { |f| f.write( cpl.cpl_xml ) }
       end # each 
-      write_pkl
+      create_and_write_pkl
       create_am
       # Write Assetmap
       @logger.info( 'Write ASSETMAP' )
       File.open( @am_file, 'w' ) { |f| f.write( @am.xml ) }
-      
     end # def
     
     private 
     
-    def write_pkl
+    # I do not join more Pkls to one, because on ROPA ther is no problem, if there are multiple PKLs.
+    # The difference is when you backup a cpl from the server to an external disk:
+    # the principle is that, everything on the PKL that contains this CPL is backed up.
+    # So if I have one PKL wiht several cpls and related mxfs and subtitles, and backup one CPL of these,
+    # the other CPLS and files of these other CPLS are backed up as well.      
+    # If I have one PKL per CPL, only this one CPL and the corresponding MXFs and subtitles are backed up.
+    # The same is with ingesting.
+    # I prefer the second soluion: one PKL per CPL, because backup and ingesting times are shorterand you do
+    # not have to ´deal with files, you do not need or do not want.  
+    def create_and_write_pkl
       # create PackingList
       @logger.info( 'Create PKL ...' )
-      # might be cumulative DCP, end up with 1 pkl to cover all
-      obsolete_pkls = Dir.glob( File.join( @dcpdir, 'pkl_*_.xml' ) ) # FIXME check xml for packing list
-      obsolete_pkls.each do |obsolete_pkl|
-	@logger.debug( "Obsolete:   #{ File.basename( obsolete_pkl ) }" )
-	File.delete( obsolete_pkl )
-      end # each
       @pkl_assets = Array.new
+            
+      # FIXME  also the fonts used in the subtitles have to go into the asset and packing list
       
-      # TODO future: for subtitles
-      # TODO future: also the fons used in the subtitles have to go into the asset and packing list
-      @pkl_assets << Dir.glob( File.join( @dcpdir, 'subtitle_*_.xml' ) )
-      
-      @pkl_assets << Dir.glob( File.join( @dcpdir, 'cpl_*_.xml' ) )
-      @pkl_assets << Dir.glob( File.join( @dcpdir, '*_.mxf' ) )
+      # Feed the DCP_Assets of the cpls created plus the cpl into pkl_assets.
+      @pkl_assets << @packing_list
       pkl_uuid = ShellCommands.uuid_gen
       @logger.debug( "PKL UUID:       #{ pkl_uuid }" )
       @pkl_file = File.join( @dcpdir, 'pkl_' + pkl_uuid + '_.xml' )
-      @pkl = PKL_SMPTE_429_8_2007.new(
+      
+      pkl = PKL_SMPTE_429_8_2007.new(
 	pkl_uuid,
 	@dcp_common_info,
 	@pkl_assets.flatten
       )
       if @dcp_common_info.sign
-	@pkl = DCSignature::DCSignature.new( @pkl.xml, @signature_context.signer_key_file, @signature_context.ca_cert_file, @signature_context.intermediate_cert_file, @signature_context.certchain_objs )
+	pkl = DCSignature::DCSignature.new( pkl.xml, @signature_context.signer_key_file, @signature_context.ca_cert_file, @signature_context.intermediate_cert_file, @signature_context.certchain_objs )
       end # if
+      
+      @pkl_dcp_asset = DCPAsset.create_asset( 
+	File.join( @dcpdir, 'pkl_' + pkl_uuid + '_.xml' ),
+	pkl_uuid, 
+	MIMETYPE_XML, 
+	asdcp_digest_string( pkl.xml ), 
+	pkl.xml.length, 
+	packinglist = TRUE )
+
       # Write PackingList
       @logger.info( 'Write PKL ...' )
-      File.open( @pkl_file, 'w' ) { |f| f.write( @pkl.xml ) }
+      File.open( @pkl_file, 'w' ) { |f| f.write( pkl.xml ) }
     end
+    
     def create_am
       # create Assetmap
       @logger.info( 'Create ASSETMAP' )
       am_assets = Array.new
-      am_assets << @pkl_assets
-      am_assets << @pkl_file
+      
+      am_assets << @packing_list  << @pkl_dcp_asset
+           
       am_uuid = ShellCommands.uuid_gen
       @logger.debug( "AM UUID:        #{ am_uuid }" )
       @am_file = File.join( @dcpdir, 'ASSETMAP.xml' )
@@ -233,12 +300,15 @@ module SMPTE_DCP
 	@dcp_common_info,
 	am_assets.flatten
       )
+      if File.exists?( @am_file)
+	@am.merge(@am_file)
+      end
     end
 
   end # class
   
+  # assets here are objects of type DCPAsset
   class PKL_SMPTE_429_8_2007
-    # assets here are assetnames
     def initialize( pkl_uuid, dcp_common_info, assets )
       @logger = Logger::Logger.instance
       issue_date = DateTime.now.to_s
@@ -252,24 +322,14 @@ module SMPTE_DCP
 	  xml.Issuer_ dcp_common_info.issuer
 	  xml.Creator_ dcp_common_info.creator
 	  xml.AssetList_ {
-	    asset_hashes = get_asset_hashes( assets )
 	    assets.each do |asset|
-	      if File.is_XML_file?(asset)
-		mimetype = 'text/xml'
-	        # TODO What is with subtitles here
-		asset_uuid = Nokogiri::XML( File.open( asset ) ).xpath( "//xmlns:CompositionPlaylist/xmlns:Id" ).text.split( 'urn:uuid:' ).last
-	      else
-		mimetype = 'application/mxf'
-		metadata = MXF::MXF_Metadata.new( asset ).hash
-		asset_uuid = metadata[ MXF::MXF_KEYS_ASSETUUID ] 
-	      end
 	      xml.Asset_ {
-		xml.Id_ "urn:uuid:#{ asset_uuid }"
+		xml.Id_ "urn:uuid:#{ asset.id }"
 		# optional: AnnotationText per asset
-	        xml.Hash_ asset_hashes.has_key?(asset_uuid) ? asset_hashes[ asset_uuid ] : asdcp_digest( asset )
-		xml.Size_ File.size( asset )
-		xml.Type_ mimetype
-		xml.OriginalFileName_ File.basename( asset )
+	        xml.Hash_ asset.asset_hash
+		xml.Size_ asset.size
+		xml.Type_ asset.mimetype
+		xml.OriginalFileName_ File.basename( asset.asset )
 	      } # Asset
 	    end # assets.each
 	  } # AssetList
@@ -281,42 +341,66 @@ module SMPTE_DCP
       return @builder.to_xml( :indent => 2 )
     end # def 
     
-    private
-    
-    def get_asset_hashes( assets )
-      # get hashes from the cpls of this dcp, so we do not have to compute them a second time 
-      # another possibility would be to store them like the image assets or keys
-      # andrae.steiner@liwest.at
-      asset_hashes = Hash.new
-      assets.each do |asset|
-	if File.is_XML_file?(asset)
-	  xml_assets = Nokogiri::XML( File.open( asset ) ).xpath( '//xmlns:CompositionPlaylist/xmlns:ReelList/xmlns:Reel/xmlns:AssetList/*' )
-	  @logger.debug( "CPL has #{ xml_assets.size } asset#{ ( xml_assets.size > 1 or xml_assets.size == 0 ) ? 's' : '' }" )
-	  xml_assets.each_with_index do |single_asset, index|
-	    id = single_asset.xpath( "xmlns:Id" ).text.split( ':' ).last
-	    hash = single_asset.xpath( "xmlns:Hash" ).text
-	    @logger.debug("found id = #{ id }, hash = #{ hash }.") if !id.nil?
-	    next if id.nil?
-	    if asset_hashes.include?( id )
-	      @logger.debug( "   <asset Key seen>: #{ id }" )
-	    else
-	      asset_hashes[id]= hash 
-	    end # if
-	  end # each_with_index do
-	end # if 
-      end # each do
-      asset_hashes
-    end # def 
-    
   end # PKL_SMPTE_429_8_2007
   
-  # TODO class DC_SUBTITLE
-  # should allow for two line subtitles
+  class DCSubtitleLine
+    attr_reader :valign, :halign, :hpos, :vpos, :text
+    def initialize(valign, halign, hpos, vpos, text)
+      @valign = valign
+      @halign = halign
+      @hpos = hpos
+      @vpos = vpos
+      @text = text
+    end
+  end
+  
+  class DCSingleSubtitle
+    attr_reader :time_in, :time_out, :fadeup_time, :fadedown_time, :text_lines
+    def initialize( time_in, time_out, fadeup_time, fadedown_time, text_lines )
+      qtime_in = time_in
+      @time_out = time_out
+      @fadeup_time = fadeup_time
+      @fadedown_time = fadedown_time
+      @text_lines = text_lines
+    end
+  end
+  
+  # DcSubtitles are not defined by a schema but by DTD
   class DC_SUBTITLE
-    def initialize( subtitle_id, movie_title, reel_number, language, font_id, font_uri, font_size, font_weight, font_color, font_effect, subtitles )
+    def initialize( subtitle_id, movie_title, reel_number, language, font_id, font_uri, font_size, font_weight, font_color, font_effect, font_effect_color, subtitle_list )
+      @builder = Nokogiri::XML::Builder.new( :encoding => 'UTF-8' ) do |xml|
+	xml.DCSubtitle_( 'Version' => "1.0" ) {
+	  xml<< "<!-- #{ AppName } #{ AppVersion } DCSubtitle -->"
+	  xml.SubtitleID_ subtitle_id
+	  xml.Movietitle_ movie_title
+	  xml.ReelNumber_ reel_number
+	  xml.Language_ language
+	  xml.LoadFont_( "Id" => font_id, "URI" => font_uri ) 
+	  xml.Font_("Size" => font_size, "Weight" => font_weight, "Id" => font_id, "Color" => font_color, 
+	             "Effect" => font_effect, "EffectColor" => font_effect_color) {
+	    subtitle_list.each_with_index do |st, i|
+	      xml.Subtitle_("SpotNumber" => i + 1, "TimeIn" => st.time_in, "TimeOut" => st.time_out,
+	                     "FadeUpTime" => st.fadeup_time, "FadeDownTime" => st.fadedown_time ) {
+	        st.text_lines.each do |t|
+		  xml.Text_("VAlign" => t.valign, "HAlign" => t.halign, "HPosition" => t.hpos, "VPosition" => t.vpos) {
+		    xml.text t.text
+	          } # Text_
+	        end # st.text_lines.each
+	      } # Subtitle_
+	    end # subtitle_list.each do
+	  } # Font_                                                               
+	} # DCSubtitle_
+      end # @builder
+    end # def initialize
+    def xml
+      @builder.to_xml( :indent => 2 )
     end # def 
   end # class
 
+  # FIXME only single line subtitles are possible here
+  # assets here are objects of type DCPAsset
+  # Wolfgang yours was incomplete (missing text node in Subtitle_) and had a typing error (ContentTitleText_)
+  # not yet tested
   class DCST_SMPTE_428_7_2007
     def initialize( subtitle_reel_id, content_title_text, annotation_text, reel_number, language, edit_rate, time_code_rate, start_time, fonts, default_font_color_code, default_font_name, default_font_size, default_font_weight, subtitles )
       issue_date = DateTime.now.to_s
@@ -340,7 +424,9 @@ module SMPTE_DCP
 	    xml.Font_( 'Color' => default_font_color_code, 'ID' => default_font_name, 'Size' => default_font_size, 'Weight' => default_font_weight ) {
 	      # subtitles = [ [tc_in, tc_out, fade_up, fade_down, text], [...] ]
 	      subtitles.each_with_index do |subtitle, index|
-		xml.Subtitle_( 'SpotNumber' => index + 1, 'TimeIn' => subtitle[ 0 ], 'TimeOut' => subtitle[ 1 ], 'FadeUpTime' => subtitle[ 2 ], 'FadeDownTime' => subtitle[ 3 ] )
+		xml.Subtitle_( 'SpotNumber' => index + 1, 'TimeIn' => subtitle[ 0 ], 'TimeOut' => subtitle[ 1 ], 'FadeUpTime' => subtitle[ 2 ], 'FadeDownTime' => subtitle[ 3 ] ) {
+	           xml.text( subtitle[ 4 ] )
+		}
 	      end # subtitles.each
 	    } # Font
 	  } # SubtitleList
@@ -396,26 +482,13 @@ module SMPTE_DCP
 	                # Each asset has essence, Intrinsicduration (must not be explicite)
 	                # and duration
 	                # see also the fixme's below
-	          mainpicture_proc = Proc.new do|xml|
-	              xml.Id_ "urn:uuid:#{ image_asset.id }"
-		      xml.EditRate_ image_asset.edit_rate 
-		      xml.IntrinsicDuration_ image_asset.intrinsic_duration
-		      xml.EntryPoint_ image_asset.entry_point
-		      xml.Duration_ image_asset.duration
-		      if image_asset.encrypted
-			xml.KeyId_ "urn:uuid:#{ image_asset.key_id }"
-			xml.Hash_ image_asset.asset_hash
-		      end
-		      xml.FrameRate_ image_asset.frame_rate # FIXME SampleRate?
-		      xml.ScreenAspectRatio_ image_asset.screen_aspect_ratio
-	          end # Proc.new do
 		  if image_asset.stereoscopic
 		    xml.MainStereoscopicPicture_( 'xmlns:msp-cpl' => 'http://www.smpte-ra.org/schemas/429-10/2008/Main-Stereo-Picture-CPL' ) {
-		      mainpicture_proc.call(xml)                                                                                                      
+		      mainpicture_fragment(image_asset, xml)                                                                                                      
 		    } # MainStereoscopicPicture
 		  else
 		    xml.MainPicture_ {
-	              mainpicture_proc.call(xml)               
+	              mainpicture_fragment(image_asset, xml)               
 		    } # MainPicture
 		  end # if 
 		  unless audio_asset.nil?
@@ -449,7 +522,7 @@ module SMPTE_DCP
 	} # CompositionPlaylist
       end # @builder
     end # initialize
-	
+
     def xml
       return @builder.to_xml( :indent => 2 )
     end # def 
@@ -465,8 +538,26 @@ module SMPTE_DCP
 	# TODO more common, does not print subtitleassets for example
       end # each
     end # check_reels
+    
+    private
+    
+    def mainpicture_fragment(image_asset, xml)
+      xml.Id_ "urn:uuid:#{ image_asset.id }"
+      xml.EditRate_ image_asset.edit_rate 
+      xml.IntrinsicDuration_ image_asset.intrinsic_duration
+      xml.EntryPoint_ image_asset.entry_point
+      xml.Duration_ image_asset.duration
+      if image_asset.encrypted
+	xml.KeyId_ "urn:uuid:#{ image_asset.key_id }"
+	xml.Hash_ image_asset.asset_hash
+      end
+      xml.FrameRate_ image_asset.frame_rate # FIXME SampleRate?
+      xml.ScreenAspectRatio_ image_asset.screen_aspect_ratio
+    end
+
   end # CPL_SMPTE_429_7_2006
 
+  # must have been written, because here their filesize (=Length) is needed.
   class AM_SMPTE_429_9_2007
     def initialize( am_uuid, dcp_common_info, assets )
       @logger = Logger::Logger.instance
@@ -482,28 +573,14 @@ module SMPTE_DCP
 	  xml.Issuer_ dcp_common_info.issuer
 	  xml.AssetList_ {
 	    assets.each do |asset|
-	      if File.is_XML_file?(asset)
-		doc = Nokogiri::XML::Document.parse( File.read( asset ) )
-		if doc.search( "//xmlns:PackingList" ).empty? # FIXME assume CPL
-		  packing_list = FALSE
-		  asset_uuid = Nokogiri::XML( File.open( asset ) ).xpath( "//xmlns:CompositionPlaylist/xmlns:Id" ).text.split( 'urn:uuid:' ).last
-		else
-		  packing_list = TRUE
-		  asset_uuid = Nokogiri::XML( File.open( asset ) ).xpath( "//xmlns:PackingList/xmlns:Id" ).text.split( 'urn:uuid:' ).last
-		end # PackingList?
-	      else # MXF
-		metadata = MXF::MXF_Metadata.new( asset ).hash
-		asset_uuid = metadata[ MXF::MXF_KEYS_ASSETUUID ]
-	      end
-	      
 	      xml.Asset_ {
-		xml.Id_ "urn:uuid:#{ asset_uuid }"
-		if packing_list 
+		xml.Id_ "urn:uuid:#{ asset.id }"
+		if asset.packinglist 
 		  xml.PackingList_ 'true'
 		end
 		xml.ChunkList_ {
 		  xml.Chunk_ {
-		    xml.Path_ File.basename( asset )  # FIXME Vorsicht: passt nur in diesem speziellen Fall
+		    xml.Path_ File.basename( asset.asset )  # FIXME Vorsicht: passt nur in diesem speziellen Fall
 						      # andrae.steiner@liwest.at
 		    # optional: VolumeIndex
 		    # optional: Offset
@@ -517,7 +594,7 @@ module SMPTE_DCP
       end # @builder
     end # initialize
     
-    # dirty method, because it changes the data type of @builder.
+    # Dirty method, because it changes the data type of @builder.
     # But as a Nokogiri greenhorn I do not know another way.
     # Also removing the namespaces and adding the namespace again 
     # is not fine. I do this because add_child adds a default: namespace tag

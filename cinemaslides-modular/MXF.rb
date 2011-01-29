@@ -33,12 +33,12 @@ module MXF
   end # MXF_Metadata
 
   class MXFTrack
-    attr_reader :mxf_file, :mxf_uuid
+    attr_reader :mxf_file_name, :mxf_uuid
     def initialize(prefix, keyshortcut,
                    dcpdir, keysdir, stereoscopic, dcp_encrypt, fps)
       # Generate content keys. Proof-of-concept, ad-hoc, hairy, you name it.
       @mxf_uuid =  ShellCommands.uuid_gen
-      @mxf_file =  File.join( dcpdir, prefix + "_#{ mxf_uuid }_.mxf" )
+      @mxf_file_name =  File.join( dcpdir, prefix + "_#{ mxf_uuid }_.mxf" )
       @key = ShellCommands.random_128_bit
       @key_id = ShellCommands.uuid_gen
       @logger = Logger::Logger.instance
@@ -54,7 +54,7 @@ module MXF
       if @stereoscopic
 	@logger.info( 'Wrap as stereoscopic essence' )
       end
-      opts_params_args = "-L #{ @dcp_encrypt ? '-e -k ' + @key + ' -j ' + @key_id : '-E' } -p #{ @fps } -a #{ @mxf_uuid } -c #{ @mxf_file } #{ @stereoscopic ? '-3 ' + file : ''  } #{ file }"
+      opts_params_args = "-L #{ @dcp_encrypt ? '-e -k ' + @key + ' -j ' + @key_id : '-E' } -p #{ @fps } -a #{ @mxf_uuid } -c #{ @mxf_file_name } #{ @stereoscopic ? '-3 ' + file : ''  } #{ file }"
       ShellCommands.asdcp_test_create_mxf( opts_params_args )
     end
     

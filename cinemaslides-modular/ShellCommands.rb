@@ -32,6 +32,9 @@ module ShellCommands
     def self.openssl_sha1_64 (file)
       `openssl dgst -sha1 -binary #{ file } | openssl base64`
     end
+    def self.openssl_sha1_64_string (string)
+      `echo "#{string}" | openssl dgst -sha1 -binary | openssl base64`
+    end
     def self.base64(s) 
       `echo '#{ s }' | openssl base64 -d`
     end
