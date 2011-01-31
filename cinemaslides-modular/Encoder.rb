@@ -3,8 +3,10 @@ module Encoder
   require 'ShellCommands'
   require 'OptParser'
   ShellCommands = ShellCommands::ShellCommands
+  
+  DCP_MAX_BPS = 250000000
 
-    class Encoder
+  class Encoder
       def initialize(size, stereo, fps)
 	@size = size
 	@fps = fps
@@ -45,8 +47,7 @@ module Encoder
       private 
       
       def jpeg2000_dcp_rate_constraints( fps ) # returns bytes
-	dcp_max_bps = 250000000
-	max_per_image = ( dcp_max_bps / 8 / fps ).floor
+	max_per_image = ( DCP_MAX_BPS / 8 / fps ).floor
 	max_per_component = ( max_per_image / 1.25 ).floor
 	return max_per_image, max_per_component
       end

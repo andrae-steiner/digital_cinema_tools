@@ -1,10 +1,10 @@
 module SMPTE_DCP
 
-  require 'ftools'
   require 'MXF'
   require 'ShellCommands'
   require 'DCSignature'
   require 'Logger'
+  
   
   ShellCommands = ShellCommands::ShellCommands
   MAIN_PICTURE_ASSET_TYPE ='MainPicture'
@@ -200,7 +200,7 @@ module SMPTE_DCP
       # add assets of this dcp and the dcp itsself to the packing list
       dcp_reels.each do |reel| @packing_list << reel.assets_to_a end
       @packing_list << DCPPKLAsset.create_asset( 
-	File.join( @dcpdir, 'cpl_' + cpl_uuid + '_.xml' ),
+	SMPTE_DCP::cpl_file( @dcpdir, cpl_uuid ),
 	cpl_uuid, 
 	MIMETYPE_XML,
 	asdcp_digest_string( cpl.xml ), 
@@ -208,12 +208,13 @@ module SMPTE_DCP
     end # def 
     
     # Write a version file DCP.
-    # This methos is called after one or more calls to add_cpl/add_font
+    #
+    # This method is called after one or more calls to add_cpl/add_font
     def write_vf_dcp (other_dcp_asset_list)
       @cpls.each do |cpl|
 	 @logger.info( 'Write CPL' )
 	 @logger.debug( "CPL UUID:       #{ cpl.uuid }" )
-         cpl_file = File.join( @dcpdir, 'cpl_' + cpl.uuid + '_.xml' )
+         cpl_file = SMPTE_DCP::cpl_file( @dcpdir, cpl.uuid )
 	 File.open( cpl_file, 'w' ) { |f| f.write( cpl.cpl_xml ) }
       end # each 
       create_and_write_pkl
@@ -224,12 +225,13 @@ module SMPTE_DCP
     end # def 
     
     # Write a original version DCP.
+    #
     # This methos is called after one or more calls to add_cpl/add_font
     def write_ov_dcp
       @cpls.each do |cpl|
 	 @logger.info( 'Write CPL' )
 	 @logger.debug( "CPL UUID:       #{ cpl.uuid }" )
-         cpl_file = File.join( @dcpdir, 'cpl_' + cpl.uuid + '_.xml' )
+         cpl_file = SMPTE_DCP::cpl_file( @dcpdir, cpl.uuid )
 	 File.open( cpl_file, 'w' ) { |f| f.write( cpl.cpl_xml ) }
       end # each 
       create_and_write_pkl
@@ -239,16 +241,30 @@ module SMPTE_DCP
       File.open( @am_file, 'w' ) { |f| f.write( @am.xml ) }
     end # def
     
-    private 
+    def self.cpl_file( dir, name )
+      File.join( dir, 'cpl_' + name + '_.xml' )
+    end
+    def self.pkl_file( dir, name )
+      File.join( dir, 'pkl_' + name + '_.xml' )
+    end
+    def self.am_file( dir )
+      File.join( dir, 'ASSETMAP.xml' )
+    end
+    def self.st_file( dir, name )
+      File.join( dir, 'st_' + name + '_.xml' )
+    end
+    private       
     
-    # I do not join more Pkls to one, because on ROPA ther is no problem, if there are multiple PKLs.
+    # I do not join more PPKLs to one, because on ROPA there is no problem, if there are multiple PKLs.
+    #
     # The difference is when you backup a cpl from the server to an external disk:
-    # the principle is that, everything on the PKL that contains this CPL is backed up.
-    # So if I have one PKL wiht several cpls and related mxfs and subtitles, and backup one CPL of these,
-    # the other CPLS and files of these other CPLS are backed up as well.      
+    # The principle is that, everything on the PKL that contains this CPL is backed up.
+    # So if I have one PKL with several CPLs and related MXFs and subtitles, and backup one CPL of these,
+    # the other CPLs and files of these other CPLs are backed up as well.      
     # If I have one PKL per CPL, only this one CPL and the corresponding MXFs and subtitles are backed up.
     # The same is with ingesting.
-    # I prefer the second soluion: one PKL per CPL, because backup and ingesting times are shorterand you do
+    #
+    # I prefer the second soluion: one PKL per CPL, because backup and ingesting times are shorter and you do
     # not have to ´deal with files, you do not need or do not want.  
     def create_and_write_pkl
       # create PackingList
@@ -261,7 +277,7 @@ module SMPTE_DCP
       @pkl_assets << @packing_list
       pkl_uuid = ShellCommands.uuid_gen
       @logger.debug( "PKL UUID:       #{ pkl_uuid }" )
-      @pkl_file = File.join( @dcpdir, 'pkl_' + pkl_uuid + '_.xml' )
+      @pkl_file = SMPTE_DCP::pkl_file( @dcpdir, pkl_uuid )
       
       pkl = PKL_SMPTE_429_8_2007.new(
 	pkl_uuid,
@@ -273,7 +289,7 @@ module SMPTE_DCP
       end # if
       
       @pkl_dcp_asset = DCPAsset.create_asset( 
-	File.join( @dcpdir, 'pkl_' + pkl_uuid + '_.xml' ),
+	SMPTE_DCP::pkl_file( @dcpdir, pkl_uuid ),
 	pkl_uuid, 
 	MIMETYPE_XML, 
 	asdcp_digest_string( pkl.xml ), 
@@ -294,7 +310,7 @@ module SMPTE_DCP
            
       am_uuid = ShellCommands.uuid_gen
       @logger.debug( "AM UUID:        #{ am_uuid }" )
-      @am_file = File.join( @dcpdir, 'ASSETMAP.xml' )
+      @am_file = SMPTE_DCP::am_file( @dcpdir)
       @am = AM_SMPTE_429_9_2007.new(
 	am_uuid,
 	@dcp_common_info,
@@ -365,7 +381,7 @@ module SMPTE_DCP
     end
   end
   
-  # DcSubtitles are not defined by a schema but by DTD
+  # DCSubtitle is not defined by a schema but by DTD
   class DC_SUBTITLE
     def initialize( subtitle_id, movie_title, reel_number, language, font_id, font_uri, font_size, font_weight, font_color, font_effect, font_effect_color, subtitle_list )
       @builder = Nokogiri::XML::Builder.new( :encoding => 'UTF-8' ) do |xml|
@@ -397,10 +413,12 @@ module SMPTE_DCP
     end # def 
   end # class
 
-  # FIXME only single line subtitles are possible here
-  # assets here are objects of type DCPAsset
-  # Wolfgang yours was incomplete (missing text node in Subtitle_) and had a typing error (ContentTitleText_)
-  # not yet tested
+  # FIXME only single line subtitles are possible here.
+  # Assets here are objects of type DCPAsset.
+  #
+  # Wolfgang yours was incomplete (missing text node in Subtitle_) and had a typing error (ContentTitleText_).
+  #
+  # Not yet tested.
   class DCST_SMPTE_428_7_2007
     def initialize( subtitle_reel_id, content_title_text, annotation_text, reel_number, language, edit_rate, time_code_rate, start_time, fonts, default_font_color_code, default_font_name, default_font_size, default_font_weight, subtitles )
       issue_date = DateTime.now.to_s
@@ -557,7 +575,6 @@ module SMPTE_DCP
 
   end # CPL_SMPTE_429_7_2006
 
-  # must have been written, because here their filesize (=Length) is needed.
   class AM_SMPTE_429_9_2007
     def initialize( am_uuid, dcp_common_info, assets )
       @logger = Logger::Logger.instance

@@ -341,7 +341,7 @@ module KDM_Gen
 	@logger.info( "No target certificate specified. Use --target <certificate>" )
 	kdm_no_go << 'No target'
       else
-	if File.is_directory?( @kdm_target )
+	if !File.is_directory?( @kdm_target )
 	  begin
 	    recipient = Recipient.new( @kdm_target)
 		    

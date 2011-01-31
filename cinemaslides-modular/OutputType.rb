@@ -1,8 +1,8 @@
 module OutputType
   
-# hier geschieht die wahre Arbeit
-# siehe create_output_type
-#       create_output_type2
+# Here the real work is done
+# see create_output_type
+#     create_output_type2
 
   require 'Encoder'
   require 'OptParser'
@@ -12,7 +12,9 @@ module OutputType
   require 'AudioSequence'
   require 'MXF'
   require 'SMPTE_DCP'
-  
+        
+  TESTING = TRUE
+
   
   ShellCommands = ShellCommands::ShellCommands
   SRGB_TO_XYZ = "0.4124564 0.3575761 0.1804375 0.2126729 0.7151522 0.0721750 0.0193339 0.1191920 0.9503041"
@@ -89,9 +91,7 @@ module OutputType
 	end
       end
     end
-      
-    private
-    
+          
     def fadetype( level )
       "-fill black -colorize #{ level.abs }"
       # composite source -size [source's size] xc:black -blend level.abs result
@@ -136,8 +136,9 @@ module OutputType
       @thumbs_dimensions = calc_thumbsdimensions(THUMB_DIMENSIONS_FACTOR)
     end
 
-    # TODO we should probably feed already "create_output_type" with a list of SMPTE::DCPAsset elements
-    # but in this case MXF generation has to be delayed until SMPTE_DCP::SMPTE_DCP.add_cpl
+    # TODO we should probably feed already "create_output_type" with a list of SMPTE::DCPAsset elements.
+    #
+    # But in this case MXF generation has to be delayed until SMPTE_DCP::SMPTE_DCP.add_cpl
     def create_output_type( source, source_audio, signature_context)
       create_output_type2( source, source_audio, signature_context)
       final_report(Final_report_context.new(
@@ -202,6 +203,9 @@ module OutputType
 
       ### Create all frames
       @final_audio = @audio_sequence.audio_source_to_pcm if !source_audio.empty?
+
+      Dir.mkdir( @workdir ) unless File.exists?( @workdir )
+      Dir.mkdir( @conformdir )
       @image_sequence.image_sequence_to_output_format
       ###
      
@@ -220,7 +224,7 @@ module OutputType
       @assetsdir_audio = File.join( @cinemaslidesdir, 'assets-audio' )
       @keysdir = File.join( @cinemaslidesdir, 'keys' )
 
-      OptParser::Optparser.set_dcpdir_option(@workdir)
+      OptParser::Optparser.set_dcpdir_option(File.join( @workdir, "dcp" ))
 
       if confirm_or_create( @cinemaslidesdir )
 	@logger.debug( "#{ @cinemaslidesdir } is writeable" )
@@ -467,7 +471,6 @@ module OutputType
 	  sign              = @options.sign,
 	  signature_context = signature_context)
  
-      TESTING = TRUE
 #for testing
       subtitle_filename =  "/home/home-10.1/Documents/Programmkino/DCP-TEST/Untertitel/Maener_al_Dente_dtUt_R4.xml" 
       font_filename = "/home/home-10.1/Documents/Programmkino/DCP-TEST/Untertitel/arial.ttf"
@@ -484,19 +487,19 @@ module OutputType
       
       st_uuid = ShellCommands.uuid_gen
       dc_subtitle = SMPTE_DCP::DC_SUBTITLE.new( 
-	subtitle_id =  st_uuid, 
-        movie_title = "testmovie", 
-        reel_number = 1, 
-        language = "German", 
-        font_id = "Font1", 
-	font_uri = "arial.ttf", 
-	font_size = 47, 
-	font_weight = "normal", 
-	font_color = "FFFFFFFF", 
-	font_effect = "shadow", 
+	subtitle_id       =  st_uuid, 
+	movie_title       = "testmovie", 
+	reel_number       = 1, 
+	language          = "German", 
+	font_id           = "Font1", 
+	font_uri          = File.basename(font_filename), 
+	font_size         = 47, 
+	font_weight       = "normal", 
+	font_color        = "FFFFFFFF", 
+	font_effect       = "shadow", 
 	font_effect_color = "FF000000", 
-	subtitle_list = [st1, st2] )
-      st_filename = File.join(@options.dcpdir, "st_" + st_uuid + "_.xml")
+	subtitle_list     = [st1, st2] )
+      st_filename = SMPTE_DCP::SMPTE_DCP::st_file( @options.dcpdir, st_uuid )
       File.open( st_filename, 'w' ) { |f| f.write( dc_subtitle.xml ) } if TESTING
        
       dcp_subtitle_asset = SMPTE_DCP::DCPSubtitleAsset.new( st_filename, edit_rate = "24 1", intrinsic_duration=168, entry_point=0, duration=168)
@@ -513,7 +516,7 @@ module OutputType
 	rating_list = nil
       )
       
-      smpte_dcp.add_font(font_filename, SMPTE_DCP::MIMETYPE_TTF)
+      smpte_dcp.add_font(font_filename, SMPTE_DCP::MIMETYPE_TTF)  if TESTING
       
       smpte_dcp.write_ov_dcp
            

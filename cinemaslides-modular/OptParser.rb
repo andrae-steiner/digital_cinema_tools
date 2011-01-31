@@ -22,6 +22,9 @@ module OptParser
   SAMPLE_RATE_CHOICE_48K   = '48k'
   SAMPLE_RATE_CHOICE_96000 = '96000'
   SAMPLE_RATE_CHOICE_96K   = '96k'
+  VERBOSITY_CHOICE_QUIET = 'quiet'
+  VERBOSITY_CHOICE_INFO  = 'info'
+  VERBOSITY_CHOICE_DEBUG = 'debug'
 
   # FIXME further constants
   #     options.fps_dcp_choices = [ 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ]
@@ -29,7 +32,6 @@ module OptParser
   #  options.audio_bps_choices = [ '16', '24' ]
   #  options.dcp_kind_choices = [ 'feature', 'trailer', 'test', 'teaser', 'rating', 'advertisement', 'short', 'transitional', 'psa', 'policy' ]
   #  options.dcp_color_transform_matrix_choices = [ 'iturec709_to_xyz', 'srgb_to_xyz', '709', 'srgb', Regexp.new( '(\d+(\.\d+)?\s*){9,9}' ) ]
-  #  options.verbosity_choices = [ 'quiet', 'info', 'debug' ]
 
 
   
@@ -82,8 +84,8 @@ class Optparser
     options.keep = FALSE
     options.dont_check = FALSE
     options.dont_drop = FALSE
-    options.verbosity = 'info'
-    options.verbosity_choices = [ 'quiet', 'info', 'debug' ]
+    options.verbosity = VERBOSITY_CHOICE_INFO
+    options.verbosity_choices = [ VERBOSITY_CHOICE_QUIET, VERBOSITY_CHOICE_INFO, VERBOSITY_CHOICE_DEBUG ]
     options.transition_and_timing = Array.new
     options.transition_and_timing_choices = [   TRANSITION_CHOICE_CUT, TRANSITION_CHOICE_FADE, TRANSITION_CHOICE_CROSSFADE ]
     options.transition_and_timing << TRANSITION_CHOICE_CUT
@@ -235,7 +237,7 @@ BANNER
       opts.on( '--target <certificate>', String, 'KDM mode: Path to the recipient device certificate' ) do |p|
         options.kdm_target = p
       end
-      opts.on( '-v', '--verbosity level', String, "Use 'quiet', 'info' or 'debug' (Default: info)" ) do |p|
+      opts.on( '-v', '--verbosity level', String, "Use '#{ VERBOSITY_CHOICE_QUIET }', '#{ VERBOSITY_CHOICE_INFO }' or '#{ VERBOSITY_CHOICE_DEBUG }' (Default: #{ VERBOSITY_CHOICE_INFO })" ) do |p|
         if options.verbosity_choices.include?( p )
           options.verbosity = p
         else
@@ -441,9 +443,9 @@ EXAMPLES
     end
   end
 
-  def self.set_dcpdir_option( workdir )
+  def self.set_dcpdir_option( dcpdir )
     if @@options.dcp_user_output_path == nil
-      @@options.dcpdir = File.join( workdir, "dcp" )
+      @@options.dcpdir = dcpdir
     else
       @@options.dcpdir = @@options.dcp_user_output_path
     end

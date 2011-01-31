@@ -4,7 +4,7 @@ module DCSignatureKDM
   ShellCommands = ShellCommands::ShellCommands
   
   class DCSignatureKDM
-    def initialize( xml_to_sign, signer_key_file, ca_cert_file, intermediate_cert_file, certificate_chain )
+    def initialize( xml_to_sign, signer_key_file, ca_cert_file, intermediate_cert_file, certificate_chain )      
       doc = Nokogiri::XML( xml_to_sign ) { |x| x.noblanks }
       @builder_signature_template = Nokogiri::XML::Builder.with( doc.at( doc.root.node_name ) ) do |xml|
 	xml[ 'ds' ].Signature_( 'xmlns:ds' => 'http://www.w3.org/2000/09/xmldsig#' ) {

@@ -30,7 +30,7 @@ module X509Certificate
       @certs = Array.new
       c = Array.new
 
-      certchain_text.split( /\n/ ).each do |line|
+      @certchain_text.split( /\n/ ).each do |line|
 	if line =~ /-----BEGIN CERTIFICATE-----/
 	  c = Array.new
 	  c << line
@@ -45,7 +45,7 @@ module X509Certificate
       @certs.reverse!
       
       @certchain_objs = @certs
-      @signer_cert_obj = @certchain_objs.first
+      @signer_cert_obj = @certchain_objs.first      
     end # initialize
     
     def to_a

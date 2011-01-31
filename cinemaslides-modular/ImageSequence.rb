@@ -4,6 +4,8 @@ module ImageSequence
   require 'Logger'
   require 'ShellCommands'
   ShellCommands = ShellCommands::ShellCommands
+  
+  THUMBFILE_SUFFIX = ".jpg"
 
   class FileSequence
     attr_reader :framecount
@@ -74,12 +76,10 @@ module ImageSequence
     end
     
     def create_leader
-      ### Create all frames
-      Dir.mkdir( @output_type_obj.workdir ) unless File.exists?( @output_type_obj.workdir )
-      Dir.mkdir( @output_type_obj.conformdir )
       # Create black leader
       if @black_leader > 0
-	make_black_sequence( 'leader', @black_leader)
+        @logger.info( "Black leader: #{ @black_leader } seconds" )
+	make_black_sequence( @black_leader)
       end
     end
     
@@ -91,7 +91,8 @@ module ImageSequence
     def create_trailer
       # Create black tail
       if @black_tail > 0
-	make_black_sequence( 'tail', @black_tail )
+        @logger.info( "Black tail: #{ @black_tail } seconds" )
+	make_black_sequence(@black_tail )
       end
     end
 
@@ -105,7 +106,7 @@ module ImageSequence
       @logger.info( "Create thumbnails" )
       thumbs = Array.new
       @source.each do |single_source|
-	thumbasset, todo = @thumb_asset_functions.check_for_asset(single_source, ".jpg")
+	thumbasset, todo = @thumb_asset_functions.check_for_asset(single_source, THUMBFILE_SUFFIX)
 	if todo
 	  @logger.info( "Thumb for #{ single_source }" )
 	  ShellCommands.IM_convert_thumb( single_source, @output_type_obj.thumbs_dimensions, thumbasset)
@@ -114,7 +115,7 @@ module ImageSequence
       end
       thumbs = thumbs.join(' ')
       # cache montages, wacky-hacky using string of all thumbnail filenames (md5 hexdigest and some) to match
-      thumbs_asset, todo =  @thumb_asset_functions.check_for_asset(thumbs, '_montage_.jpg' )
+      thumbs_asset, todo =  @thumb_asset_functions.check_for_montage_asset(thumbs, THUMBFILE_SUFFIX )
       if todo
 	ShellCommands.IM_montage(thumbs, @source.length, @output_type_obj.thumbs_dimensions, thumbs_asset)
       end
@@ -207,7 +208,7 @@ module ImageSequence
 	if todo
 	  composite( image1, level, image2, asset )
 	end
-	@logger.debug("2 symlink p1 = #{ asset }, p2 = #{ filename }")
+#	@logger.debug("2 symlink p1 = #{ asset }, p2 = #{ filename }")
 	File.symlink( File.expand_path(asset),  filename )
       end
     end
@@ -242,15 +243,13 @@ module ImageSequence
     end
 
     def make_black_frame( filename )
-      black_asset = File.join( @output_type_obj.assetsdir, 'black.' + @output_format )
-      asset, todo = @asset_functions.check_for_asset( black_asset, @output_format )
+      asset, todo = @asset_functions.check_for_black_asset( @output_format )
       @output_type_obj.create_blackframe(asset) if todo
 #      @logger.debug("0 symlink p1 = #{ asset }, p2 = #{ filename }")
       File.symlink(  File.expand_path(asset), filename )
     end
 
-    def make_black_sequence( info, duration )
-      @logger.info( "Black #{ info }: #{ duration } seconds" )
+    def make_black_sequence( duration )
       blackfile = @file_sequence.sequencefile
       make_black_frame( blackfile )
       @file_sequence.sequence_links_to( blackfile, duration )

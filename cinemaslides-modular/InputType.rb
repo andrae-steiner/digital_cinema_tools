@@ -2,7 +2,10 @@ module InputType
 
   require 'Logger'
   require 'ShellCommands'
+  require 'AudioSequence'
   ShellCommands = ShellCommands::ShellCommands
+  
+  AUDIOSUFFIX_REGEXP = Regexp.new(/(mp3|MP3|wav|WAV|flac|FLAC|aiff|AIFF|aif|AIF|ogg|OGG)$/)
   
   class InputType
     def initialize (source)
@@ -35,7 +38,7 @@ module InputType
       @cinemaslidesdir = File.get_cinemaslidesdir
       @options = OptParser::Optparser.get_options     
       @options.fade_in_time = 0
-      @options.duration = 0.04166666667
+      @options.duration = 1.0/24.0
       @options.fade_out_time = 0
     end
     def seperate_and_check_files
@@ -45,8 +48,8 @@ module InputType
       end
       @image_output_dir = File.join(@cinemaslidesdir, "tif_from_av_#{ get_timestamp }")
       Dir.mkdir( @image_output_dir )
-      @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_.wav")
-      `ffmpeg -y -i "#{ @avfile }" -an -r 24  -threads 8 -b 10000k #{File.join(@image_output_dir, "%06d.tif")}`
+      @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_" +AudioSequence::FILE_SUFFIX_PCM)
+      `ffmpeg -y -i "#{ @avfile }" -an -r 24  -threads 8 -b 10000k #{File.join(@image_output_dir, "%06d.tiff")}`
       `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 24 -ar 48000 #{ @audio_from_av }`
       return Dir.glob( "#{ @image_output_dir }/*" ).sort,  [@audio_from_av], nil, TRUE
     end
@@ -75,7 +78,7 @@ module InputType
 	source_audio = Array.new
 	source_tmp = @source.clone
 	@source.each do |element|
-	  if element =~ /(mp3|MP3|wav|WAV|flac|FLAC|aiff|AIFF|aif|AIF|ogg|OGG)$/
+	  if element =~ AUDIOSUFFIX_REGEXP
 	    source_audio << element
 	    source_tmp.delete( element )
 	  end
