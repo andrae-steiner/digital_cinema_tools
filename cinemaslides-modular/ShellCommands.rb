@@ -1,6 +1,5 @@
 module ShellCommands
-  
-  
+    
   class ShellCommands
     def self.image_identify_command (file)
       `identify -ping -format '%m' #{ file } 2>/dev/null`    
@@ -38,10 +37,18 @@ module ShellCommands
     def self.base64(s) 
       `echo '#{ s }' | openssl base64 -d`
     end
+    # sh does not accept named pipes created by process substitution, so we have to call bash
+    # 
     def self.dc_thumbprint(cert_file)
       tmp = Tempfile.new( 'cinemaslides-' )
-      `openssl asn1parse -in #{ cert_file } -out #{ tmp.path } -noout -strparse 4`
+      `bash -c "openssl asn1parse -in #{ cert_file } -out #{ tmp.path } -noout -strparse 4"`
       `openssl dgst -sha1 -binary #{ tmp.path } | openssl base64`.chomp
+    end
+    # \\\" is because of the double shell call
+    # 
+    def self.dc_thumbprint_string(cert)
+      ShellCommands::dc_thumbprint("<(echo -e \\\"#{ cert.gsub("\n","\\n") }\\\")")
+#      ShellCommands::dc_thumbprint("<(echo -e #{ cert.gsub("\n","\\n") })")
     end
     def self.display_command( file )
       `display #{ file }`
@@ -168,11 +175,34 @@ module ShellCommands
     def self.xmlsec_command( signer_key_file, ca_cert_file, intermediate_cert_file , path)
       `xmlsec1 --sign --privkey-pem #{ signer_key_file } --trusted-pem #{ ca_cert_file } --trusted-pem #{ intermediate_cert_file } #{ path }`
     end
+    # sh does not accept named pipes created by process substitution
+    # 
+    # for a solution see dc_thumbprint, dc_thumbprint_string
+    def self.xmlsec_command_strings( signer_key, ca_cert, intermediate_cert , path)
+      tmp_files = Array.new
+      [signer_key, ca_cert, intermediate_cert].each_with_index do |key_cert, i|
+	tmp_files[i] = Tempfile.new( 'cinemaslides-' )
+	tmp = File.open( tmp_files[i].path, 'w' ) { |f| f.write key_cert ; f.close }
+      end
+      ShellCommands::xmlsec_command( tmp_files[0].path, tmp_files[1].path, tmp_files[2].path, path)
+    end
     def self.xmlsec_KDM_command( signer_key_file, ca_cert_file, intermediate_cert_file , path)
       # FIXME hardcoded certificate chain size
       `xmlsec1 --sign --id-attr:Id http://www.smpte-ra.org/schemas/430-3/2006/ETM:AuthenticatedPublic --id-attr:Id http://www.smpte-ra.org/schemas/430-3/2006/ETM:AuthenticatedPrivate --privkey-pem #{ signer_key_file } --trusted-pem #{ ca_cert_file } --trusted-pem #{ intermediate_cert_file } #{ path }`
     end
-  end
+    # sh does not accept named pipes created by process substitution
+    # 
+    # for a solution see dc_thumbprint, dc_thumbprint_string
+    def self.xmlsec_KDM_command_strings( signer_key, ca_cert, intermediate_cert , path)
+      # FIXME hardcoded certificate chain size
+        tmp_files = Array.new
+        [signer_key, ca_cert, intermediate_cert].each_with_index do |key_cert, i|
+	  tmp_files[i] = Tempfile.new( 'cinemaslides-' )
+	  tmp = File.open( tmp_files[i].path, 'w' ) { |f| f.write key_cert ; f.close }
+	end
+      ShellCommands::xmlsec_KDM_command( tmp_files[0].path, tmp_files[1].path, tmp_files[2].path, path)        
+    end
 
+  end # class
 
-end
+end # module

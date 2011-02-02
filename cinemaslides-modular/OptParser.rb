@@ -97,7 +97,7 @@ class Optparser
 
     opts = OptionParser.new do |opts|
       opts.banner = <<BANNER
-#{ AppName } #{ AppVersion } #{ ENV[ 'CINEMASLIDESDIR' ].nil? ? "\nExport CINEMASLIDESDIR to point to desired work directory needed for temporary files, thumbnails, asset depot, DCPs (Default: HOME/cinemaslidesdir)" : "\nCINEMASLIDESDIR is set (#{ ENV[ 'CINEMASLIDESDIR' ] })" } #{ ENV[ 'CINEMACERTSTORE' ].nil? ? "\nExport CINEMACERTSTORE to point to a directory which holds your digital cinema compliant signing key and certificates" : "\nCINEMACERTSTORE is set (#{ ENV[ 'CINEMACERTSTORE' ] })" }
+#{ AppName } #{ AppVersion } #{ ENV[ 'CINEMASLIDESDIR' ].nil? ? "\nExport CINEMASLIDESDIR to point to desired work directory needed for temporary files, thumbnails, asset depot, DCPs (Default: HOME/cinemaslidesdir)" : "\nCINEMASLIDESDIR is set (#{ ENV[ 'CINEMASLIDESDIR' ] })" } 
  
 Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --encoder <encoder>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
 
@@ -214,7 +214,7 @@ BANNER
       opts.on( '--dont-drop', 'Do not drop and ignore unreadable files or files ImageMagick cannot decode but nag and exit instead' ) do
         options.dont_drop = TRUE
       end
-      opts.on( '--sign', 'Sign CPL and PKL (export ENV variable CINEMACERTSTORE to point at a directory that holds your signing certificate and validating certificate chain)' ) do
+      opts.on( '--sign', 'Sign CPL and PKL (cinemaslides has a directory that holds the signing certificate and validating certificate chain, not changeable so far)' ) do
         options.sign = TRUE
       end
       opts.on( '--encrypt', 'Encrypt trackfiles. Implies signature. Stores content keys in CINEMASLIDESDIR/keys' ) do
@@ -253,9 +253,9 @@ BANNER
 Specify options in any order. Order of image/audio files matters. Audio is optional.
 Audio timing is handled in a first-come, first-served manner -- independently from image timings
 
-In order to use signature and KDM generation you need to have 3 related, digital cinema compliant
-certificates in $CINEMACERTSTORE (#{ app } needs some specific names for now -- #{ AppVersion })
-(Use https://github.com/wolfgangw/digital_cinema_tools/blob/master/make-dc-certificate-chain.rb for that)
+In order to use signature and KDM generation cinemaslides comes with 3 related, digital cinema compliant
+certificates  (#{ app } needs some specific names for now -- #{ AppVersion })
+(these are created with https://github.com/wolfgangw/digital_cinema_tools/blob/master/make-dc-certificate-chain.rb )
 
   Preview slideshow with audio (Half sized preview. Cut transition. Default duration: 5 seconds each):
 $ #{ app } image1.jpg audio.wav image2.tiff
@@ -386,13 +386,7 @@ EXAMPLES
 	logger.critical( "Not a usable encoder: '#{ @@options.encoder }'" )
 	return FALSE
       end
-      if @@options.sign
-	if ENV[ 'CINEMACERTSTORE' ].nil?
-	  logger.critical( "CINEMACERTSTORE not set. Cannot locate signer's private key, issuing certificates and certificate chain" )
-	  return FALSE
-	end
-      end
-      
+            
       if ! @@options.fps_dcp_choices.include?( @@options.fps )
 	if @@options.fps_asdcp_choices.include?( @@options.fps )
 	  logger.critical( "DCI compliant framerate but not yet implemented in #{ File.basename( $0 ) }: #{ @@options.fps } fps" )

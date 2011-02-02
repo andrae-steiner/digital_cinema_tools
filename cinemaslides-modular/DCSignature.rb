@@ -5,7 +5,7 @@ module DCSignature
   ShellCommands = ShellCommands::ShellCommands
   
   class DCSignature
-    def initialize( xml_to_sign, signer_key_file, ca_cert_file, intermediate_cert_file, certificate_chain )
+    def initialize( xml_to_sign, signer_key, certificate_chain )
       signing_cert = certificate_chain.first
       doc = Nokogiri::XML( xml_to_sign ) { |x| x.noblanks } # Thanks, Aaron Patterson
       @builder_signature_template = Nokogiri::XML::Builder.with( doc.at( doc.root.node_name ) ) do |xml|
@@ -51,15 +51,14 @@ module DCSignature
       tmpfile = File.open( tmp.path, 'w' ) { |f| f.write pre_signed_xml; f.close }
 
       @logger = Logger::Logger.instance
-      @logger.debug( "Signer key file:  #{ signer_key_file }    " )
-      @logger.debug( "ca_cert_file:           #{ ca_cert_file }" )
-      @logger.debug( "intermediate_cert_file: #{ intermediate_cert_file }" )
+#      @logger.debug( "Signer key file:  #{ signer_key_file }    " )
+#      @logger.debug( "ca_cert_file:           #{ ca_cert_file }" )
+#      @logger.debug( "intermediate_cert_file: #{ intermediate_cert_file }" )
       @logger.debug( "tmp.path: #{ tmp.path }" )
-      
+            
       # FIXME hardcoded certificate chain size
-      @signed_xml = ShellCommands.xmlsec_command( signer_key_file, ca_cert_file, intermediate_cert_file , tmp.path)
+      @signed_xml = ShellCommands.xmlsec_command_strings( signer_key,  certificate_chain[2].to_s, certificate_chain[1].to_s , tmp.path)
       #
-      
     end # initialize
     
     def xml

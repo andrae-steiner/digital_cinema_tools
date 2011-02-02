@@ -56,9 +56,7 @@ module KDM_Gen
       certs = @doc.xpath( '//CompositionPlaylist/Signature/KeyInfo/X509Data/X509Certificate' )
       @logger.debug( "CPL carries #{ certs.size } certificates" )
       signer_cert = "-----BEGIN CERTIFICATE-----\n" + certs.first.text + "\n-----END CERTIFICATE-----\n"
-      tmp = Tempfile.new( 'cinemaslides-' )
-      tmpfile = File.open( tmp.path, 'w' ) { |f| f.write signer_cert; f.close }
-      thumbprint = dc_thumbprint( tmp.path )
+      thumbprint = ShellCommands.dc_thumbprint_string( signer_cert)
       @logger.debug( "CPL signer certificate thumbprint: #{ thumbprint }" )
       return thumbprint
     end
@@ -81,7 +79,7 @@ module KDM_Gen
     def initialize (kdm_target)
       @logger = Logger::Logger.instance
       @cert_obj = OpenSSL::X509::Certificate.new( File.read( kdm_target ) )
-      @cert_thumbprint = dc_thumbprint( kdm_target )
+      @cert_thumbprint = ShellCommands.dc_thumbprint( kdm_target)
       @cn_name = 'TEST'
       # make target name for kdm filename and print RDN info
       @logger.debug( "Target:" )
@@ -119,29 +117,10 @@ module KDM_Gen
       kdm_no_go = Array.new
       kdm_issue_date = DateTime.now
       
-      # set up signature context
-      # FIXME check availability and validity of certificates/keys
-      # FIXME include verification of certchain and matrjoschka-contained validity periods
-      if ENV[ 'CINEMACERTSTORE' ].nil?
-	@logger.info( "Expecting certificates at $CINEMACERTSTORE. Set this environment variable with 'export CINEMACERTSTORE=<path>'" )
-	@logger.info( "Run make-dc-certificate-chain.rb in that directory to create the required certificates." )
-	@logger.info( "Sorry for the inconvenience. Work in progress" )
-	kdm_no_go << 'CINEMACERTSTORE not set'
-      else
-	cinamecertstore = ENV[ 'CINEMACERTSTORE' ]
-	@logger.debug( "CINEMACERTSTORE is set to #{ cinamecertstore }" )
-	if File.is_directory?( cinamecertstore )
-	  
-	  @signature_context = X509Certificate::X509CertificateChain.new(cinamecertstore)
-	  
-	  signer_cert_thumbprint = dc_thumbprint( @signature_context.signer_cert_file )
-	  @logger.info( "KDM signer: #{ @signature_context.signer_cert_obj.subject.to_s }" )
-	else
-	  @logger.info( "CINEMACERTSTORE should point at a directory holding your private signer key and associated certificates" )
-	  kdm_no_go << 'CINEMACERTSTORE not a directory'
-	end
-      end
-      
+
+      @signature_context = X509Certificate::X509CertificateChain.new
+      signer_cert_thumbprint = ShellCommands.dc_thumbprint_string(@signature_context.signer_cert_obj.to_s)
+
       # check for key directory
       @keysdir = File.join( @output_type_obj.cinemaslidesdir, 'keys' )
       if File.is_directory?( @keysdir )
@@ -232,9 +211,7 @@ module KDM_Gen
 
       kdm_signed_xml = DCSignatureKDM::DCSignatureKDM.new( 
 	kdm_xml,
-	@signature_context.signer_key_file,
-	@signature_context.ca_cert_file,
-	@signature_context.intermediate_cert_file,
+	@signature_context.signer_key, 
 	@signature_context.certchain_objs
       ).xml
       

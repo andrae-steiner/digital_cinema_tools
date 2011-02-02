@@ -192,7 +192,7 @@ module SMPTE_DCP
       content_version_label = content_version_id
       cpl = CPL_SMPTE_429_7_2006.new( cpl_uuid, dcp_reels, @dcp_common_info, content_title, content_kind, content_version_id, content_version_label, rating_list )
       if @dcp_common_info.sign
-	cpl_new = DCSignature::DCSignature.new( cpl.xml, @signature_context.signer_key_file, @signature_context.ca_cert_file, @signature_context.intermediate_cert_file, @signature_context.certchain_objs )
+	cpl_new = DCSignature::DCSignature.new( cpl.xml,  @signature_context.signer_key, @signature_context.certchain_objs )
 	cpl = cpl_new
       end # if
       @cpls << CPLInfo.new(cpl_uuid, cpl.xml)
@@ -285,7 +285,7 @@ module SMPTE_DCP
 	@pkl_assets.flatten
       )
       if @dcp_common_info.sign
-	pkl = DCSignature::DCSignature.new( pkl.xml, @signature_context.signer_key_file, @signature_context.ca_cert_file, @signature_context.intermediate_cert_file, @signature_context.certchain_objs )
+	pkl = DCSignature::DCSignature.new( pkl.xml,   @signature_context.signer_key, @signature_context.certchain_objs )
       end # if
       
       @pkl_dcp_asset = DCPAsset.create_asset( 

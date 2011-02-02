@@ -4,7 +4,7 @@ module DCSignatureKDM
   ShellCommands = ShellCommands::ShellCommands
   
   class DCSignatureKDM
-    def initialize( xml_to_sign, signer_key_file, ca_cert_file, intermediate_cert_file, certificate_chain )      
+    def initialize( xml_to_sign, signer_key, certificate_chain )      
       doc = Nokogiri::XML( xml_to_sign ) { |x| x.noblanks }
       @builder_signature_template = Nokogiri::XML::Builder.with( doc.at( doc.root.node_name ) ) do |xml|
 	xml[ 'ds' ].Signature_( 'xmlns:ds' => 'http://www.w3.org/2000/09/xmldsig#' ) {
@@ -41,7 +41,7 @@ module DCSignatureKDM
       #File.copy( tmp.path, 'presigned.xml' )
 
       # FIXME hardcoded certificate chain size
-      @signed_xml = ShellCommands.xmlsec_KDM_command( signer_key_file, ca_cert_file, intermediate_cert_file , tmp.path)
+      @signed_xml = ShellCommands.xmlsec_KDM_command_strings( signer_key,  certificate_chain[2].to_s, certificate_chain[1].to_s , tmp.path)
       #
 
     end # initialize

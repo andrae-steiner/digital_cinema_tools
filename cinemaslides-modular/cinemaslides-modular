@@ -224,10 +224,6 @@ module DCTools
     binary_package = structure_id_bin + signer_cert_thumbprint_bin + cpl_id_bin + key_type + key_id_bin + kdm_not_valid_before + kdm_not_valid_after + key_bin
   end
   
-  def dc_thumbprint( cert_file )
-    ShellCommands::ShellCommands.dc_thumbprint( cert_file)
-  end
-
   def uuid_to_bin( uuid_string )
     uuid_string.gsub( /[^0-9A-Fa-f]/, '' )[ 0..31 ].to_a.pack 'H*'
   end
@@ -334,7 +330,7 @@ exit if !files_ok
 @output_type_obj.create_output_type( 
   source       = @source, 
   source_audio = @source_audio, 
-  signature_context = X509Certificate::X509CertificateChain.new(ENV[ 'CINEMACERTSTORE' ]))
+  signature_context = X509Certificate::X509CertificateChain.new)
 
 
 
