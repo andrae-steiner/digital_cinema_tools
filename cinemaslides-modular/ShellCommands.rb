@@ -65,7 +65,7 @@ module ShellCommands
     def self.touch_command( file )
       `touch #{ file } > /dev/null 2>&1`
     end
-    def self.p_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions, depth_parameter, compress_parameter)
+    def self.p_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions)
       `convert #{image} \
 	-type TrueColor \
 	-alpha Off \
@@ -75,23 +75,28 @@ module ShellCommands
 	-gravity center \
 	-extent #{ dimensions } \
 	-gamma 2.2 \
-	#{ depth_parameter } #{ compress_parameter }  \
+	-depth 8  \
 	-strip \
 	-sampling-factor 2x2 \
       #{ filename }`
     end
     def self.p_IM_convert_apply_level( image, level, filename )
+      # alternatives to "-fill black -colorize #{ level.abs }" would be
+      # composite source -size [source's size] xc:black -blend level.abs result
+      #"-modulate #{ level + 100 }"#,#{ level + 100 }" # second parameter is saturation. this one has channel clipping issues
+      #"-modulate #{ level + 100 } -blur 0x#{ level }" # experiment, color starvation -> heavy banding
+      #"-brightness-contrast #{ level }x#{ level }" # not in ubuntu 10.04's im 6.5.7-8, crushes off into swamp blacks
       `convert #{image} \
 	  -type TrueColor \
 	  -gamma 0.454545454545455 \
-	  #{ fadetype( level ) } \
+	  -fill black -colorize #{ level.abs } \
 	  -gamma 2.2 \
 	  #{ filename }`
     end
     def self.p_IM_black_frame( file, dimensions )
       `convert -type TrueColor -size #{ dimensions } xc:black -depth 8 #{ file }`
     end
-    def self.d_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions, depth_parameter, compress_parameter)
+    def self.smpte_dcp_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions)
       `convert #{image} \
 	-type TrueColor \
 	-alpha Off \
@@ -102,19 +107,25 @@ module ShellCommands
 	-extent #{ dimensions } \
 	-recolor '#{ OutputType::SRGB_TO_XYZ }' \
 	-gamma 2.6 \
-	#{ depth_parameter } #{ compress_parameter }  \
+	-depth 12 \
+	-compress none  \
 	#{ filename }`
     end
-    def self.d_IM_convert_apply_level( image, fadetype, filename, depth_parameter )
+    def self.smpte_dcp_IM_convert_apply_level( image, level, filename )
+      # alternatives to "-fill black -colorize #{ level.abs }" would be
+      # composite source -size [source's size] xc:black -blend level.abs result
+      #"-modulate #{ level + 100 }"#,#{ level + 100 }" # second parameter is saturation. this one has channel clipping issues
+      #"-modulate #{ level + 100 } -blur 0x#{ level }" # experiment, color starvation -> heavy banding
+      #"-brightness-contrast #{ level }x#{ level }" # not in ubuntu 10.04's im 6.5.7-8, crushes off into swamp blacks
       `convert #{image} \
 	  -type TrueColor \
 	  -gamma 0.38461538461538458 \
-	  #{ fadetype } \
-	  #{ depth_parameter }  \
+	  -fill black -colorize #{ level.abs } \
+	  -depth 12  \
 	  -compress none \
-	#{ filename }`
+	  #{ filename }`
     end
-    def self.d_IM_black_frame( file, dimensions )
+    def self.smpte_dcp_IM_black_frame( file, dimensions )
       `convert -type TrueColor -size #{ dimensions } xc:black -depth 12 #{ file }`
     end
     def self.hostname_command
@@ -161,6 +172,8 @@ module ShellCommands
       `openssl rsautl -encrypt -oaep -certin -inkey #{ target } -in #{ path } | openssl base64`
     end
     def self.opendcp_j2k_command( file, asset, additional_options )
+      @logger = Logger::Logger.instance
+      @logger.debug ("OpenDcp COMMAND = " + "opendcp_j2k -i #{ file } -o #{ asset } #{ additional_options }")
       `opendcp_j2k -i #{ file } -o #{ asset } #{ additional_options }`
     end
     def self.kakadu_encode_command( file, asset, profile, max_bpi, max_bpc)

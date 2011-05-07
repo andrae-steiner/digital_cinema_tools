@@ -17,7 +17,7 @@ module ImageSequence
       @logger = Logger::Logger.instance
     end
 
-    def sequencefile
+    def next_file
       file = File.join( @dir, "#{ '%06d' % @framecount }.#{ @output_format }" )
       @framecount += 1
       file
@@ -25,7 +25,7 @@ module ImageSequence
     
     def sequence_links_to( file, seconds )
     ( 1..( seconds * @fps - 1 ) ).each do # 1 file already written
-      link = sequencefile
+      link = next_file
       # FIXME link available on all platforms?
 #      @logger.debug("4 symlink p1 = #{ file }, p2 = #{ link }")
       File.symlink( File.expand_path(file),  link )
@@ -37,7 +37,7 @@ module ImageSequence
   end
 
   class ImageSequence
-    attr_reader :asset_functions
+    attr_reader :asset_functions, :output_format, :fps, :conformdir
     def initialize (source, output_type_obj, output_format, resize,
                     fps, black_leader, black_tail, fade_in_time, duration, fade_out_time, 
                     crossfade_time)
@@ -53,6 +53,7 @@ module ImageSequence
       @duration = duration
       @fade_out_time = fade_out_time
       @crossfade_time = crossfade_time
+      @conformdir =  output_type_obj.conformdir
       @file_sequence = FileSequence.new(output_type_obj.conformdir, output_format, @fps)
       @asset_functions = Asset::ImageAssetFunctions.new(output_type_obj, resize)
     end
@@ -65,14 +66,14 @@ module ImageSequence
       @file_sequence.framecount
     end
         
-    def sequence_frames
+    def n_sequence_frames
       # FIXME raise some exception about an undefined method
       raise NotImplementedError, "Do not instanciate this abstract class: ImageSequence"
     end
     
-    def image_sequence_frames
+    def n_image_sequence_frames
       # meat of sequence_frames (without black leader/tail) -- where audio will play
-      sequence_frames - ( ( @black_leader + @black_tail ) * @fps )
+      n_sequence_frames - ( ( @black_leader + @black_tail ) * @fps )
     end
     
     def create_leader
@@ -94,10 +95,6 @@ module ImageSequence
         @logger.info( "Black tail: #{ @black_tail } seconds" )
 	make_black_sequence(@black_tail )
       end
-    end
-
-    def image_sequence_to_output_format
-      @output_type_obj.convert_image_source_to_output_format(self)
     end
 
     def create_montage_preview
@@ -181,7 +178,7 @@ module ImageSequence
       # hence the shifted fade symmetry (by 1 step).
       # 
       ( 1..( seconds * @fps ) ).each do |i|
-	filename = @file_sequence.sequencefile
+	filename = @file_sequence.next_file
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
 	asset, todo = @asset_functions.check_for_asset( image, @output_format, level )
@@ -201,7 +198,7 @@ module ImageSequence
       ladder = ( final .. initial ).step( step.abs ).collect
       levels = ladder.collect { |rung| sigmoid( rung, initial, final, 50, 0.125 ) }
       ( 1..( seconds * @fps ) ).each do |i|
-	filename = @file_sequence.sequencefile
+	filename = @file_sequence.next_file
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
 	asset, todo = @asset_functions.check_for_asset( [ image1, image2 ], @output_format, level )
@@ -216,7 +213,7 @@ module ImageSequence
     def full_level( image, duration )
       @logger.info( "--- Full level #{ imagecount_info( image ) }" )
       level = 0
-      file = @file_sequence.sequencefile
+      file = @file_sequence.next_file
 #	@logger.debug("3 symlink p1 = #{ image }, p2 = #{ file }")
       File.symlink( File.expand_path(image),  file )
       if ( 1 ..( duration * @fps - 1 ) ).none? # only 1 image needed
@@ -232,10 +229,6 @@ module ImageSequence
     def conform( image )
       @logger.info( "Conform image: #{ image }" )
       asset, todo = @asset_functions.check_for_asset( image, @output_format )
-#      asset_test, todo_test =  @asset_functions.check_for_asset_old( image, @output_format )
-#      @logger.debug("Imagesequence conform todo = #{ todo }, todo_test = #{ todo_test }")
-#      @logger.debug("Imagesequence conform asset = #{ asset }")
-#      @logger.debug("Imagesequence conform asset_test = #{ asset_test }")
       if todo
 	@output_type_obj.convert_resize_extent_color_specs( image, asset )
       end
@@ -250,7 +243,7 @@ module ImageSequence
     end
 
     def make_black_sequence( duration )
-      blackfile = @file_sequence.sequencefile
+      blackfile = @file_sequence.next_file
       make_black_frame( blackfile )
       @file_sequence.sequence_links_to( blackfile, duration )
     end
@@ -285,7 +278,7 @@ module ImageSequence
       end
     end
     
-    def sequence_frames
+    def n_sequence_frames
       ( ( @black_leader + @black_tail ) + @source.length * ( @fade_in_time + @duration + @fade_out_time ) ) * @fps
     end
 
@@ -329,9 +322,16 @@ module ImageSequence
             
     end
     
-    def sequence_frames
-      ( ( @black_leader + @black_tail ) + @crossfade_time + @source.length * ( @crossfade_time + @duration ) ) * @fps 
+    def n_sequence_frames
+      
+# Wrong      
+#      ( ( @black_leader + @black_tail ) + @crossfade_time + @source.length * ( @crossfade_time + @duration ) ) * @fps 
+      
       # implicit fade in/out first/last when crossfading
+      
+      # Wolfgangs commit 7f441cbc7edd1ba411bd
+      ( ( @black_leader + @black_tail ) + ( ( @source.length - 1 ) * @crossfade_time ) + @source.length * @duration ) * @fps
+      
     end
   end
   
@@ -349,7 +349,7 @@ module ImageSequence
       ladder = ( final .. initial ).step( step.abs ).collect
       levels = ladder.collect { |rung| sigmoid( rung, initial, final, 50, 0.125 ) }
       ( 1..( seconds * @fps ) ).each do |i|
-	filename = @file_sequence.sequencefile
+	filename = @file_sequence.next_file
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
 	asset, todo = @asset_functions.check_for_asset( [ image1, image2 ], @output_format, level )

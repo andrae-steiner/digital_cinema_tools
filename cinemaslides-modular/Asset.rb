@@ -15,7 +15,7 @@ module Asset
       @logger = Logger::Logger.instance
     end
     
-    # asset match is based on a /conform's/ IM signature + dimensions + (level unless jpeg 2000 codestream requested) + (encoder + fps if jpeg 2000 codestream is requested) + suffix
+    # asset match is based on a /conform's/ IM signature + dimensions + (level unless jpeg 2000 codestream requested) + (jpeg2000_codec + fps if jpeg 2000 codestream is requested) + suffix
     
     def check_for_asset( filename_s, suffix, level = nil )
       check_for_asset_2( filename_s, suffix, filename_to_asset_conversion_proc, level)

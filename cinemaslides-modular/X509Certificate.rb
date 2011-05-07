@@ -17,12 +17,11 @@ module X509Certificate
 # returns reversed list of OpenSSL::X509::Certificates (leaf, inter, ..., root)
 #
 # TODO There should be a possibility to enter the names of the certificate files and 
-# the private key at the commandline ( --root-cert, --ca-cert, --signer-cert, --private-key for example)  
+# the private key at the commandline ( --root-cert, --ca-cert, --signer-cert, --signer-key for example)  
   class X509CertificateChain
     attr_reader :signer_cert_obj, :certchain_objs, :signer_key
-    def initialize 
+    def initialize (ca_cert, intermediate_cert, signer_cert, signer_key)
       
-#      @cinemacertstore = File.join( ENV[ 'RUBYLIB' ], CERTSTORE)
       
       # FIXME right now this is tightly coupled with make-dc-certificate-chain.rb's output.
       # FIXME hardcoded number and names of signer key, certificates and verified chain.

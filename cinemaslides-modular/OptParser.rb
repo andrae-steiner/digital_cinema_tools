@@ -1,9 +1,14 @@
 module OptParser
 
   require 'ShellCommands'
+  require 'Certificates'
+  
   OUTPUT_TYPE_CHOICE_PREVIEW = 'preview'
   OUTPUT_TYPE_CHOICE_FULLPREVIEW = 'fullpreview'
   OUTPUT_TYPE_CHOICE_DCP = 'dcp' 
+  OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM = 'smpte-dcp' 
+  OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM = 'mxf-interop-dcp' 
+  OUTPUT_TYPE_CHOICE_NO_DCP_NORM = 'none-dcp' 
   OUTPUT_TYPE_CHOICE_KDM = 'kdm' 
   ENCODER_CHOICE_OJ_TM = 'openjpeg-tm'
   ENCODER_CHOICE_OJ = 'openjpeg'
@@ -22,9 +27,6 @@ module OptParser
   SAMPLE_RATE_CHOICE_48K   = '48k'
   SAMPLE_RATE_CHOICE_96000 = '96000'
   SAMPLE_RATE_CHOICE_96K   = '96k'
-  VERBOSITY_CHOICE_QUIET = 'quiet'
-  VERBOSITY_CHOICE_INFO  = 'info'
-  VERBOSITY_CHOICE_DEBUG = 'debug'
 
   # FIXME further constants
   #     options.fps_dcp_choices = [ 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ]
@@ -33,8 +35,6 @@ module OptParser
   #  options.dcp_kind_choices = [ 'feature', 'trailer', 'test', 'teaser', 'rating', 'advertisement', 'short', 'transitional', 'psa', 'policy' ]
   #  options.dcp_color_transform_matrix_choices = [ 'iturec709_to_xyz', 'srgb_to_xyz', '709', 'srgb', Regexp.new( '(\d+(\.\d+)?\s*){9,9}' ) ]
 
-
-  
 # FIXME catch missing parameters, false options, typos etc.
 class Optparser
   def self.get_options
@@ -44,7 +44,8 @@ class Optparser
     # defaults
     options = OpenStruct.new
     options.output_type = OUTPUT_TYPE_CHOICE_PREVIEW
-    options.output_type_choices = [ OUTPUT_TYPE_CHOICE_PREVIEW, OUTPUT_TYPE_CHOICE_FULLPREVIEW, OUTPUT_TYPE_CHOICE_DCP ]
+    options.dcp_norm = OUTPUT_TYPE_CHOICE_NO_DCP_NORM
+    options.output_type_choices = [ OUTPUT_TYPE_CHOICE_PREVIEW, OUTPUT_TYPE_CHOICE_FULLPREVIEW, OUTPUT_TYPE_CHOICE_DCP, OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM, OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM ]
     options.size = CONTAINER_SIZE_2K
     options.size_choices = [ CONTAINER_SIZE_2K, CONTAINER_SIZE_4K ]
     options.aspect = ASPECT_CHOICE_FLAT
@@ -54,8 +55,8 @@ class Optparser
     options.fps = 24.0
     options.fps_dcp_choices = [ 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ]
     options.fps_asdcp_choices = [ 23.976, 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ] # 24000/1001 not DCI compliant but shows up in asdcplib. Why?
-    options.encoder = ENCODER_CHOICE_OJ
-    options.encoder_choices = [ ENCODER_CHOICE_OJ_TM, ENCODER_CHOICE_OJ, ENCODER_CHOICE_KAKADU  ]
+    options.jpeg2000_codec = ENCODER_CHOICE_OJ
+    options.jpeg2000_codec_choices = [ ENCODER_CHOICE_OJ_TM, ENCODER_CHOICE_OJ, ENCODER_CHOICE_KAKADU  ]
     options.output_format = 'jpg'
     options.black = 0.0
     options.black_leader = NIL
@@ -84,13 +85,18 @@ class Optparser
     options.keep = FALSE
     options.dont_check = FALSE
     options.dont_drop = FALSE
-    options.verbosity = VERBOSITY_CHOICE_INFO
-    options.verbosity_choices = [ VERBOSITY_CHOICE_QUIET, VERBOSITY_CHOICE_INFO, VERBOSITY_CHOICE_DEBUG ]
+    options.verbosity = Logger::VERBOSITY_CHOICE_INFO
+    options.verbosity_choices = [ Logger::VERBOSITY_CHOICE_QUIET, Logger::VERBOSITY_CHOICE_INFO, Logger::VERBOSITY_CHOICE_DEBUG ]
     options.transition_and_timing = Array.new
     options.transition_and_timing_choices = [   TRANSITION_CHOICE_CUT, TRANSITION_CHOICE_FADE, TRANSITION_CHOICE_CROSSFADE ]
     options.transition_and_timing << TRANSITION_CHOICE_CUT
     options.transition_and_timing << 5 # duration
     options.mplayer_gamma = 1.2
+    
+    options.ca_cert = Certificates::CA_CERT
+    options.intermediate_cert = Certificates::INTERMEDIATE_CERT
+    options.signer_cert = Certificates::SIGNER_CERT
+    options.signer_key = Certificates::SIGNERKEY
     
     options.input_type_choices = [ INPUT_TYPE_CHOICE_SLIDE, INPUT_TYPE_CHOICE_AV ]
     options.input_type =  INPUT_TYPE_CHOICE_SLIDE
@@ -99,13 +105,21 @@ class Optparser
       opts.banner = <<BANNER
 #{ AppName } #{ AppVersion } #{ ENV[ 'CINEMASLIDESDIR' ].nil? ? "\nExport CINEMASLIDESDIR to point to desired work directory needed for temporary files, thumbnails, asset depot, DCPs (Default: HOME/cinemaslidesdir)" : "\nCINEMASLIDESDIR is set (#{ ENV[ 'CINEMASLIDESDIR' ] })" } 
  
-Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --encoder <encoder>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
+Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
 
 BANNER
 
-      opts.on( '-t', '--type type', String, "Use '#{ OUTPUT_TYPE_CHOICE_PREVIEW }' (half size) or #{ 'OUTPUT_TYPE_CHOICE_FULLPREVIEW' } (full size) or #{ 'OUTPUT_TYPE_CHOICE_DCP' } (Default: preview)" ) do |p|
+      opts.on( '-t', '--type type', String, "Use '#{ OUTPUT_TYPE_CHOICE_PREVIEW }' (half size) or '#{ OUTPUT_TYPE_CHOICE_FULLPREVIEW }' (full size) or '#{ OUTPUT_TYPE_CHOICE_DCP }' or '#{ OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM }' or '#{ OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM }' (Default: '#{ OUTPUT_TYPE_CHOICE_PREVIEW }')" ) do |p|
         if options.output_type_choices.include?( p.downcase )
           options.output_type = p.downcase
+	  if options.output_type == OUTPUT_TYPE_CHOICE_DCP or options.output_type == OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM
+	    options.dcp_norm = OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM
+	  elsif options.output_type == OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM
+	    options.dcp_norm = OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM
+	  end
+	  if options.dcp_norm != OUTPUT_TYPE_CHOICE_NO_DCP_NORM
+	    options.output_type = OUTPUT_TYPE_CHOICE_DCP
+	  end
         else
           options.output_type = 'catch:' + p
         end
@@ -149,8 +163,8 @@ BANNER
           options.transition_and_timing[ 0 ] = 'malformed'
         end
       end
-      opts.on( '-j', '--encoder codec', String, "Use '#{ ENCODER_CHOICE_OJ }' or '#{ ENCODER_CHOICE_KAKADU }' for JPEG 2000 encoding (Default: openjpeg)" ) do |p|
-        options.encoder = p.downcase
+      opts.on( '-j', '--jpeg2000-codec codec', String, "Use '#{ ENCODER_CHOICE_OJ }' or '#{ ENCODER_CHOICE_KAKADU }' for JPEG 2000 encoding (Default: openjpeg)" ) do |p|
+        options.jpeg2000_codec = p.downcase
       end
       opts.on( '-f', '--output-format suffix', String, "Use 'jpg' or any other image related suffix (Default: jpg for previews, tiff for DCPs)" ) do |p|
         options.output_format = p
@@ -188,7 +202,7 @@ BANNER
       opts.on( '--annotation annotation', String, 'DCP/KDM annotation' ) do |p|
         options.annotation = p
       end
-      opts.on( '--kind kind', "DCP content kind. Use 'feature', 'trailer, 'test', 'teaser', 'rating', 'advertisement', 'short', 'transitional', 'psa' or 'policy' (Default: test)" ) do |p|
+      opts.on( '--kind kind', "DCP content kind. Use 'feature', 'trailer', 'test', 'teaser', 'rating', 'advertisement', 'short', 'transitional', 'psa' or 'policy' (Default: test)" ) do |p|
         if options.dcp_kind_choices.include?( p.downcase )
           options.dcp_kind = p.downcase
         end
@@ -214,13 +228,28 @@ BANNER
       opts.on( '--dont-drop', 'Do not drop and ignore unreadable files or files ImageMagick cannot decode but nag and exit instead' ) do
         options.dont_drop = TRUE
       end
-      opts.on( '--sign', 'Sign CPL and PKL (cinemaslides has a directory that holds the signing certificate and validating certificate chain, not changeable so far)' ) do
+      opts.on( '--sign', 'Sign CPL and PKL (cinemaslides has a builtin signing certificate and validating certificate chain,  changeable with --root-cert, --ca-cert, --signer-cert, --signer-key)' ) do
         options.sign = TRUE
       end
       opts.on( '--encrypt', 'Encrypt trackfiles. Implies signature. Stores content keys in CINEMASLIDESDIR/keys' ) do
         options.dcp_encrypt = TRUE
 	options.sign = TRUE
       end
+      
+      opts.on( '--ca-cert <ca_cert>', String, 'Root certificate of certificatechain for signing') do |p|
+	options.ca_cert = read_key_or_cert_from_file(p)
+      end
+      opts.on( '--intermediate-cert <intermediate_cert>', String, 'Intermediate certificate of certificatechain for signing') do |p|
+	options.intermediate_cert = read_key_or_cert_from_file(p)
+      end
+      opts.on( '--signer-cert <signer_cert>', String, 'Signer certificate of certificatechain for signing') do |p|
+	options.signer_cert = read_key_or_cert_from_file(p)
+      end
+      opts.on( '--signer-key <signer_key>', String, 'Signer key  of certificatechain for signing') do |p|
+	options.signer_cert = read_key_or_cert_from_file(p)
+      end
+
+      
       opts.on( '--kdm', 'KDM mode: Generate key delivery message. Use with --cpl, --start, --end, --issuer and --target' ) do
         options.kdm = TRUE
 	options.output_type = OUTPUT_TYPE_CHOICE_KDM
@@ -237,14 +266,14 @@ BANNER
       opts.on( '--target <certificate>', String, 'KDM mode: Path to the recipient device certificate' ) do |p|
         options.kdm_target = p
       end
-      opts.on( '-v', '--verbosity level', String, "Use '#{ VERBOSITY_CHOICE_QUIET }', '#{ VERBOSITY_CHOICE_INFO }' or '#{ VERBOSITY_CHOICE_DEBUG }' (Default: #{ VERBOSITY_CHOICE_INFO })" ) do |p|
+      opts.on( '-v', '--verbosity level', String, "Use '#{ Logger::VERBOSITY_CHOICE_QUIET }', '#{ Logger::VERBOSITY_CHOICE_INFO }' or '#{ Logger::VERBOSITY_CHOICE_DEBUG }' (Default: #{ Logger::VERBOSITY_CHOICE_INFO })" ) do |p|
         if options.verbosity_choices.include?( p )
           options.verbosity = p
         else
           options.verbosity = "info"
         end
       end
-
+      
       opts.on( '--examples', 'Some examples and explanations' ) do
         app = File.basename( $0 )
         examples = <<EXAMPLES
@@ -382,8 +411,8 @@ EXAMPLES
     logger = Logger::Logger.instance
     # check dcp related @options
     if @@options.output_type == "dcp"
-      unless @@options.encoder_choices.include?( @@options.encoder )
-	logger.critical( "Not a usable encoder: '#{ @@options.encoder }'" )
+      unless @@options.jpeg2000_codec_choices.include?( @@options.jpeg2000_codec )
+	logger.critical( "Not a usable jpeg2000_codec: '#{ @@options.jpeg2000_codec }'" )
 	return FALSE
       end
             
@@ -432,8 +461,11 @@ EXAMPLES
   end
   
   def self.set_output_format_option
-    if @@options.output_type == "dcp"
-      @@options.output_format = "tiff"
+    if @@options.output_type == OUTPUT_TYPE_CHOICE_DCP
+      @@options.output_format = 'tiff'
+    end
+    if @@options.dcp_norm == OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM
+      @@options.output_format = 'jpg'
     end
   end
 
@@ -445,7 +477,17 @@ EXAMPLES
     end
   end
 
+  private
   
+  def self.read_key_or_cert_from_file(p)
+    logger = Logger::Logger.instance
+    if !File.exists?(p)
+      logger.info("File #{ p } to read certificate or key from does not exist. Exiting.")
+      exit
+    end
+    return File.read(p)
+  end
+    
 end # class
 
 

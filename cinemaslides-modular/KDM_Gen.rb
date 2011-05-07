@@ -4,7 +4,7 @@ module KDM_Gen
   require 'X509Certificate'
   require 'KDM_SMPTE_430_1_2006'
   require 'DCSignatureKDM'
-  require 'SMPTE_DCP'
+  require 'DCP'
   
   ShellCommands = ShellCommands::ShellCommands
   CPL_XSD = "/home/home-10.1/Documents/Programmkino/wolfgangw-digital_cinema_tools-6a03857/xsd/SMPTE-429-7-2006-CPL.xsd"
@@ -31,7 +31,7 @@ module KDM_Gen
       reels.each_with_index do |reel, index|
 	reel_id = reel.xpath( "Id" ).text.split( ':' ).last
 	@logger.debug( "Reel # #{ index + 1 } (#{ reel_id })" )
-	SMPTE_DCP::CPL_ASSET_TYPES.each do |assetname|
+	DCP::CPL_ASSET_TYPES.each do |assetname|
 	  key = key_id_type_for( assetname, reel )
 	  next if key.nil?
 	  if @key_ids_types.include?( key )
@@ -96,7 +96,7 @@ module KDM_Gen
   
   class KDMCreator
     attr_reader :annotation, :issuer, :kdm_cpl, :kdm_start, :kdm_end, :kdm_target, :verbosity
-    def initialize(annotation, issuer, kdm_cpl, kdm_start, kdm_end, kdm_target, verbosity, output_type_obj)
+    def initialize(annotation, issuer, kdm_cpl, kdm_start, kdm_end, kdm_target, verbosity, signature_context, output_type_obj)
       @annotation = annotation
       @issuer = issuer
       @kdm_cpl = kdm_cpl
@@ -104,6 +104,7 @@ module KDM_Gen
       @kdm_end = kdm_end 
       @kdm_target = kdm_target
       @verbosity = verbosity
+      @signature_context = signature_context
       @output_type_obj = output_type_obj
       @logger = Logger::Logger.instance
       @logger.set_prefix_verbosity( prefix = 'kdm *', @verbosity )
@@ -118,7 +119,6 @@ module KDM_Gen
       kdm_issue_date = DateTime.now
       
 
-      @signature_context = X509Certificate::X509CertificateChain.new
       signer_cert_thumbprint = ShellCommands.dc_thumbprint_string(@signature_context.signer_cert_obj.to_s)
 
       # check for key directory

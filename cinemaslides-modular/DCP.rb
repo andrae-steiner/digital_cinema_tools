@@ -1,4 +1,4 @@
-module SMPTE_DCP
+module DCP
 
   require 'MXF'
   require 'ShellCommands'
@@ -35,7 +35,7 @@ module SMPTE_DCP
   end # class
   
   class DCPAsset
-    attr_reader   :asset  # is a  filename, the file isnot necessarily written yet
+    attr_reader   :asset  # is a  filename, the file is not necessarily written yet
     attr_accessor :id     # is an uuid
     attr_accessor :mimetype, :asset_hash, :packinglist, :size
     def initialize (asset)
@@ -110,9 +110,9 @@ module SMPTE_DCP
       @entry_point = 0
       @duration = @asset_meta[ MXF::MXF_KEYS_CONTAINER_DURATION ]
       @stereoscopic =  @asset_meta.has_key?( MXF::MXF_KEYS_STEREOSCOPIC )
+      @asset_hash = asdcp_digest( asset )
       if @asset_meta.has_key?( MXF::MXF_KEYS_CRYPTOGRAPHIC_KEY_ID )
 	@key_id = @asset_meta[ MXF::MXF_KEYS_CRYPTOGRAPHIC_KEY_ID ]
-	@asset_hash = asdcp_digest( asset )
 	@encrypted = TRUE
       else
 	@encrypted = FALSE
@@ -138,7 +138,7 @@ module SMPTE_DCP
     end # def
   end # class
             
-  class DCPReelWithAssets
+  class DCPReel
     attr_reader :image_mxf, :audio_mxf, :subtitle_xml, :image_asset, :audio_asset, :subtitle_asset
     def initialize( image_asset, audio_asset, subtitle_asset = nil )
       @image_asset = image_asset
@@ -158,15 +158,16 @@ module SMPTE_DCP
   end # class
       
   
-  class SMPTE_DCP
+  class DCP
     
   # assume, that the image and audiomxfs are already in the dcpdir
     
-    def initialize(dcpdir, issuer, creator, annotation, sign, signature_context)
+    def initialize(dcpdir, issuer, creator, annotation, sign, signature_context, dcp_functions)
       @dcp_common_info = DCPCommonInfo.new(issuer, creator, annotation, sign)
       @dcpdir = dcpdir
       @logger = Logger::Logger.instance
       @signature_context = signature_context
+      @dcp_functions = dcp_functions
       @cpls = Array.new
       @packing_list = Array.new  # all the elements that go into a packing list
     end # def 
@@ -200,7 +201,7 @@ module SMPTE_DCP
       # add assets of this dcp and the dcp itsself to the packing list
       dcp_reels.each do |reel| @packing_list << reel.assets_to_a end
       @packing_list << DCPPKLAsset.create_asset( 
-	SMPTE_DCP::cpl_file( @dcpdir, cpl_uuid ),
+	DCP::cpl_file( @dcpdir, cpl_uuid ),
 	cpl_uuid, 
 	MIMETYPE_XML,
 	asdcp_digest_string( cpl.xml ), 
@@ -210,28 +211,30 @@ module SMPTE_DCP
     # Write a version file DCP.
     #
     # This method is called after one or more calls to add_cpl/add_font
-    def write_vf_dcp (other_dcp_asset_list)
+    #
+    # ov_dcp_asset_list ist the assetlist of the DCP to which this is the  version file DCP
+    def write_vf_dcp (ov_dcp_asset_list)
       @cpls.each do |cpl|
 	 @logger.info( 'Write CPL' )
 	 @logger.debug( "CPL UUID:       #{ cpl.uuid }" )
-         cpl_file = SMPTE_DCP::cpl_file( @dcpdir, cpl.uuid )
+         cpl_file = DCP::cpl_file( @dcpdir, cpl.uuid )
 	 File.open( cpl_file, 'w' ) { |f| f.write( cpl.cpl_xml ) }
       end # each 
       create_and_write_pkl
       create_am
       # Write Assetmap
       @logger.info( 'Write ASSETMAP' )
-      File.open( @am_file, 'w' ) { |f| f.write( @am.merge(other_dcp_asset_list).xml ) }
+      File.open( @am_file, 'w' ) { |f| f.write( @am.merge(ov_dcp_asset_list).xml ) }
     end # def 
     
     # Write a original version DCP.
     #
-    # This methos is called after one or more calls to add_cpl/add_font
+    # This method is called after one or more calls to add_cpl/add_font
     def write_ov_dcp
       @cpls.each do |cpl|
 	 @logger.info( 'Write CPL' )
 	 @logger.debug( "CPL UUID:       #{ cpl.uuid }" )
-         cpl_file = SMPTE_DCP::cpl_file( @dcpdir, cpl.uuid )
+         cpl_file = DCP::cpl_file( @dcpdir, cpl.uuid )
 	 File.open( cpl_file, 'w' ) { |f| f.write( cpl.cpl_xml ) }
       end # each 
       create_and_write_pkl
@@ -253,9 +256,10 @@ module SMPTE_DCP
     def self.st_file( dir, name )
       File.join( dir, 'st_' + name + '_.xml' )
     end
+    
     private       
     
-    # I do not join more PPKLs to one, because on ROPA there is no problem, if there are multiple PKLs.
+    # I do not join more PKLs to one, because on ROPA there is no problem, if there are multiple PKLs.
     #
     # The difference is when you backup a cpl from the server to an external disk:
     # The principle is that, everything on the PKL that contains this CPL is backed up.
@@ -264,8 +268,8 @@ module SMPTE_DCP
     # If I have one PKL per CPL, only this one CPL and the corresponding MXFs and subtitles are backed up.
     # The same is with ingesting.
     #
-    # I prefer the second soluion: one PKL per CPL, because backup and ingesting times are shorter and you do
-    # not have to ´deal with files, you do not need or do not want.  
+    # I prefer the second solution: one PKL per CPL, because backup and ingesting times are shorter and you do
+    # not have to deal with files, you do not need or do not want.  
     def create_and_write_pkl
       # create PackingList
       @logger.info( 'Create PKL ...' )
@@ -277,7 +281,7 @@ module SMPTE_DCP
       @pkl_assets << @packing_list
       pkl_uuid = ShellCommands.uuid_gen
       @logger.debug( "PKL UUID:       #{ pkl_uuid }" )
-      @pkl_file = SMPTE_DCP::pkl_file( @dcpdir, pkl_uuid )
+      @pkl_file = DCP::pkl_file( @dcpdir, pkl_uuid )
       
       pkl = PKL_SMPTE_429_8_2007.new(
 	pkl_uuid,
@@ -289,7 +293,7 @@ module SMPTE_DCP
       end # if
       
       @pkl_dcp_asset = DCPAsset.create_asset( 
-	SMPTE_DCP::pkl_file( @dcpdir, pkl_uuid ),
+	DCP::pkl_file( @dcpdir, pkl_uuid ),
 	pkl_uuid, 
 	MIMETYPE_XML, 
 	asdcp_digest_string( pkl.xml ), 
@@ -310,7 +314,7 @@ module SMPTE_DCP
            
       am_uuid = ShellCommands.uuid_gen
       @logger.debug( "AM UUID:        #{ am_uuid }" )
-      @am_file = SMPTE_DCP::am_file( @dcpdir)
+      @am_file = DCP::am_file( @dcpdir)
       @am = AM_SMPTE_429_9_2007.new(
 	am_uuid,
 	@dcp_common_info,
@@ -330,7 +334,7 @@ module SMPTE_DCP
       issue_date = DateTime.now.to_s
       asset_hashes = Hash.new
       @builder = Nokogiri::XML::Builder.new( :encoding => 'UTF-8' ) do |xml|
-	xml.PackingList_( :xmlns => 'http://www.smpte-ra.org/schemas/429-8/2007/PKL', 'xmlns:dsig' => 'http://www.w3.org/2000/09/xmldsig#' ) {
+ 	xml.PackingList_( :xmlns => 'http://www.smpte-ra.org/schemas/429-8/2007/PKL', 'xmlns:dsig' => 'http://www.w3.org/2000/09/xmldsig#' ) {
 	  xml<< "<!-- #{ AppName } #{ AppVersion } smpte pkl -->"
 	  xml.Id_ "urn:uuid:#{ pkl_uuid }"
 	  xml.AnnotationText_ dcp_common_info.annotation
@@ -492,9 +496,9 @@ module SMPTE_DCP
 			# TODO intrinsicduration  leader  trailer
 	                # Take care. In Reality intrinsic duration is the real length
 	                # of the asset, with leader and trailer. YES, we have reels
-	                # with leader and trailer like on old 35mm time.
-	                # duration should be intrinsicduration - leader - trailer
-	                # entrypoint should be the first picture after leader.
+	                # with leader and trailer like in old 35mm time.
+	                # Duration should be intrinsicduration - leader - trailer.
+	                # Entrypoint should be the first picture after leader.
 	                # We can contribute to this by changing the DCPReel structure in
 	                # such a way, that we put assets in the reel.
 	                # Each asset has essence, Intrinsicduration (must not be explicite)

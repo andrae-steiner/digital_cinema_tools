@@ -43,7 +43,9 @@ module AudioSequence
       conformed_audio_list = Array.new
       source_audio_index = 0
       
-      image_sequence_length_seconds = @image_sequence.image_sequence_frames / @fps
+      image_sequence_length_seconds = @image_sequence.n_image_sequence_frames / @fps
+      @logger.debug("AUDIO: image_sequence.n_image_sequence_frames = #{ @image_sequence.n_image_sequence_frames }")
+      
       image_sequence_length_hms = hms_from_seconds( image_sequence_length_seconds ) #  needed for sox/trim
       
       # a) make a list of audiofiles with sufficient total length (read 'at least as long as image sequence')
@@ -87,7 +89,7 @@ module AudioSequence
     private 
     
     def conform_sequence_audio (conformed_audio_list, suffix)
-      image_sequence_length_seconds = @image_sequence.image_sequence_frames / @fps
+      image_sequence_length_seconds = @image_sequence.n_image_sequence_frames / @fps
       image_sequence_length_hms = hms_from_seconds( image_sequence_length_seconds ) #  needed for sox/trim
       @sequence_audio_asset, todo = @asset_functions.check_for_sequence_audio_asset( conformed_audio_list, image_sequence_length_seconds, "_" + FILE_SUFFIX_PCM )
       if todo

@@ -1,4 +1,9 @@
 module Logger
+  
+  VERBOSITY_CHOICE_QUIET = 'quiet'
+  VERBOSITY_CHOICE_INFO  = 'info'
+  VERBOSITY_CHOICE_DEBUG = 'debug'
+
 
   class Logger
   attr_accessor :prefix
@@ -6,15 +11,15 @@ module Logger
     @verbosity = verbosity
     @critical = TRUE
     case @verbosity
-    when "quiet"
+    when VERBOSITY_CHOICE_QUIET
       @info = FALSE
       @warn = FALSE
       @debug = FALSE
-    when "info"
+    when VERBOSITY_CHOICE_INFO
       @info = TRUE
       @warn = TRUE
       @debug = FALSE
-    when "debug"
+    when VERBOSITY_CHOICE_DEBUG
       @info = TRUE
       @warn = TRUE
       @debug = TRUE
@@ -31,7 +36,7 @@ module Logger
     initialize( prefix, verbosity )
   end
   
-  @@instance = Logger.new(prefix = "*", "quiet")
+  @@instance = Logger.new(prefix = "*", VERBOSITY_CHOICE_INFO)
 
   def self.instance
     return @@instance
@@ -52,7 +57,7 @@ module Logger
     to_console( @color[:critical], text ) if @critical == TRUE
   end
   def cr( text )
-    carriage_return( @color[:info], text ) unless @verbosity == "quiet"
+    carriage_return( @color[:info], text ) unless @verbosity == VERBOSITY_CHOICE_QUIET
   end
   def carriage_return( color, text )
     printf "\033[#{ color }m#{ @prefix } #{ text }\033[0m#{ ' ' * 24 }\r"; STDOUT.flush

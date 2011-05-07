@@ -18,9 +18,6 @@ AppName = File.basename( $0 )
 #
 # Export CINEMASLIDESDIR to point at the desired location for temporary files, asset depot etc.
 #   (or use the default location HOME/cinemaslidesdir)
-# Export CINEMACERTSTORE to point at a directory that holds your signing key and validating certificate chain
-# Use "make-dc-certificate-cain.rb (https://github.com/wolfgangw/digital_cinema_tools/blob/master/make-dc-certificate-chain.rb)
-#   to create a proof-of-concept, digital cinema compliant X.509 certificate chain that will work out of the box with current cinemaslides.
 #
 # Requires:
 #   ruby (1.8.7), gem, bash (install your distribution's packages)
@@ -82,7 +79,8 @@ require 'OutputType'
 require 'X509Certificate'
 require 'InputType'
 require 'ShellCommands'
-require 'SMPTE_DCP'
+require 'DCP'
+require 'DCPFunctions'
 
 include TimeDateUtils
 
@@ -115,10 +113,10 @@ class File
 end
 
 def key_types
-  { SMPTE_DCP::MAIN_PICTURE_ASSET_TYPE => 'MDIK', 
-    SMPTE_DCP::MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE => 'MDIK', 
-    SMPTE_DCP::MAIN_SOUND_ASSET_TYPE => 'MDAK', 
-    SMPTE_DCP::MAIN_SUBTITLE_ASSET_TYPE => 'MDSK' }
+  { DCP::MAIN_PICTURE_ASSET_TYPE => 'MDIK', 
+    DCP::MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE => 'MDIK', 
+    DCP::MAIN_SOUND_ASSET_TYPE => 'MDAK', 
+    DCP::MAIN_SUBTITLE_ASSET_TYPE => 'MDSK' }
 end
 
 def encoder_ids
@@ -139,6 +137,12 @@ def output_type_classnames
     OptParser::OUTPUT_TYPE_CHOICE_KDM => 'KDMOutputType' }
 end
 
+def dcp_functions_classnames
+  { OptParser::OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM => 'SMPTEDCPFunctions', 
+    OptParser::OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM => 'MXFInterOpDCPFunctions', 
+    OptParser::OUTPUT_TYPE_CHOICE_NO_DCP_NORM =>  'SMPTEDCPFunctions' }
+end
+
 def input_type_classnames
   { OptParser::INPUT_TYPE_CHOICE_SLIDE => 'SlideshowInputType', 
     OptParser::INPUT_TYPE_CHOICE_AV => 'AVContainerInputType' }
@@ -148,7 +152,7 @@ end
 def image_sequence_classnames
   { OptParser::TRANSITION_CHOICE_CUT => 'FadeOrCutTransitionsImageSequence',
     OptParser::TRANSITION_CHOICE_FADE => 'FadeOrCutTransitionsImageSequence', 
-    OptParser::TRANSITION_CHOICE_CROSSFADE => "CrossfadeTransitionsImageSequence" }
+    OptParser::TRANSITION_CHOICE_CROSSFADE => 'CrossfadeTransitionsImageSequence' }
 end
 
 
@@ -240,17 +244,12 @@ include DCTools
 
 ####											####
 ####											####
-####				H I E R   G E H T S   L O S				####
+####				H E R E   I T   S T A R T S				####
 ####											####
 ####											####
 
 
 File.set_cinemaslidesdir
-
-#"asasasa".to_s
-#ast = Array.new
-#ast << File.new("/home/home-10.1/Documents/Programmkino/DCP-TEST/Untertitel/Maener_al_Dente_dtUt_R4.xml")
-#puts ast[0].class
 
 # reconstruct original commandline for readme file
 commandline = File.basename( $0 )
@@ -279,21 +278,26 @@ if RUBY_VERSION < '1.8.7' or RUBY_VERSION >= '1.9'
 end
 @logger.debug( commandline )
 
-
+signature_context =  X509Certificate::X509CertificateChain.new(
+			      @options.ca_cert, 
+			      @options.intermediate_cert, 
+			      @options.signer_cert, 
+			      @options.signer_key)
 
 ### KDM mode
 # lässt sich nicht ganz leicht in output_type integrieren
 if @options.kdm
   @output_type_obj = OutputType::KDMOutputType.new(mandatories[OptParser::OUTPUT_TYPE_CHOICE_KDM])
   kdm_creator = KDM_Gen::KDMCreator.new(
-      annotation = @options.annotation,
-      issuer     = @options.issuer,
-      kdm_cpl    = @options.kdm_cpl,
-      kdm_start  = @options.kdm_start,
-      kdm_end    = @options.kdm_end,
-      kdm_target = @options.kdm_target,
-      verbosity  = @options.verbosity,
-      output_type_obj = @output_type_obj
+      annotation        = @options.annotation,
+      issuer            = @options.issuer,
+      kdm_cpl           = @options.kdm_cpl,
+      kdm_start         = @options.kdm_start,
+      kdm_end           = @options.kdm_end,
+      kdm_target        = @options.kdm_target,
+      verbosity         = @options.verbosity,
+      signature_context,
+      output_type_obj   = @output_type_obj
       )
   kdm_creator.create_KDM
   exit
@@ -303,11 +307,12 @@ exit if !OptParser::Optparser.output_type_option_ok?
 exit if !OptParser::Optparser.input_type_option_ok?
 
 # hier wird die richtige Klasse z.B. preview oder dcp geladen
-@output_type_obj = OutputType.const_get(output_type_classnames[@options.output_type]).new( mandatory = mandatories[@options.output_type])
+@output_type_obj = OutputType.const_get(output_type_classnames[@options.output_type]).new( 
+  mandatory = mandatories[@options.output_type], 
+  dcp_functions = DCPFunctions.const_get(dcp_functions_classnames[@options.dcp_norm]).new )
 
 exit if !OptParser::Optparser.aspect_option_ok?
 exit if !OptParser::Optparser.size_option_ok?
-exit if !OptParser::Optparser.dcp_related_options_ok?
 exit if !OptParser::Optparser.dcp_related_options_ok?
 exit if !OptParser::Optparser.set_and_check_transition_and_timing_option?
 exit if !@output_type_obj.all_mandatory_tools_available?
@@ -328,9 +333,9 @@ exit if !files_ok
 
 # hier wird dann je nach Klasse ein preview oder ein dcp erzuegt.
 @output_type_obj.create_output_type( 
-  source       = @source, 
-  source_audio = @source_audio, 
-  signature_context = X509Certificate::X509CertificateChain.new)
+  source        = @source, 
+  source_audio  = @source_audio, 
+  signature_context)
 
 
 

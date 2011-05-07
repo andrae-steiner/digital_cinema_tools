@@ -20,9 +20,9 @@ module Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
 	if size == OptParser::CONTAINER_SIZE_2K
-	  @profile = '-p cinema2K -r  #{ stereo ? 48 : fps }'
+	  @profile = "-p cinema2k -r  #{ stereo ? 48 : fps }"
 	elsif size == OptParser::CONTAINER_SIZE_4K
-	  @profile = '-p cinema4K'
+	  @profile = "-p cinema4k"
 	end
       end
       def encode(file, asset)
@@ -34,9 +34,9 @@ module Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
 	if size == OptParser::CONTAINER_SIZE_2K
-	  @profile = 'CINEMA2K'
+	  @profile = "CINEMA2K"
 	elsif size == OptParser::CONTAINER_SIZE_4K
-	  @profile = 'CINEMA4K'
+	  @profile = "CINEMA4K"
 	end
 	@max_bytes_per_image, @max_bytes_per_component = jpeg2000_dcp_rate_constraints( stereo ? 48.0 : fps )
       end
@@ -58,13 +58,13 @@ module Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
 	if size == OptParser::CONTAINER_SIZE_2K
-	  @profile = 'cinema2K #{ stereo ? 48 : fps }'
+	  @profile = "cinema2K #{ stereo ? 48 : fps }"
 	elsif size == OptParser::CONTAINER_SIZE_4K
-	  @profile = 'cinema4K'
+	  @profile = "cinema4K"
 	end
       end
       def encode(file, asset)
-	ShellCommmand.image_to_j2k_command( file, asset, @profile )
+	ShellCommands.image_to_j2k_command( file, asset, @profile )
       end
     end
 

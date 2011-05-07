@@ -11,9 +11,9 @@ module OutputType
   require 'ImageSequence'
   require 'AudioSequence'
   require 'MXF'
-  require 'SMPTE_DCP'
+  require 'DCP'
         
-  TESTING = TRUE
+  TESTING = FALSE
 
   
   ShellCommands = ShellCommands::ShellCommands
@@ -24,18 +24,18 @@ module OutputType
   THUMB_DIMENSIONS_FACTOR = 6
 
   class Summary_context
-    attr_reader :source, :sequence_frames, :signer_cert_obj
-    def initialize(source, sequence_frames, signer_cert_obj)
+    attr_reader :source, :n_sequence_frames, :signer_cert_obj
+    def initialize(source, n_sequence_frames, signer_cert_obj)
       @source = source
-      @sequence_frames = sequence_frames
+      @n_sequence_frames = n_sequence_frames
       @signer_cert_obj = signer_cert_obj
     end
   end
 
   class Final_report_context
-    attr_reader :sequence_frames, :fps, :transition_and_timing, :keep, :framecount, :source, :workdir
-    def initialize( sequence_frames, fps, transition_and_timing, keep, framecount, source, workdir )
-      @sequence_frames = sequence_frames
+    attr_reader :n_sequence_frames, :fps, :transition_and_timing, :keep, :framecount, :source, :workdir
+    def initialize( n_sequence_frames, fps, transition_and_timing, keep, framecount, source, workdir )
+      @n_sequence_frames = n_sequence_frames
       @fps = fps
       @transition_and_timing = transition_and_timing
       @keep = keep
@@ -54,10 +54,11 @@ module OutputType
   
   class OutputType
     attr_reader :cinemaslidesdir
-    def initialize(mandatory)
+    def initialize(mandatory, dcp_functions)
       @options = OptParser::Optparser.get_options            
       @logger = Logger::Logger.instance
       @mandatory = mandatory
+      @dcp_functions = dcp_functions
       @cinemaslidesdir = File.get_cinemaslidesdir
     end  
     
@@ -92,14 +93,6 @@ module OutputType
       end
     end
           
-    def fadetype( level )
-      "-fill black -colorize #{ level.abs }"
-      # composite source -size [source's size] xc:black -blend level.abs result
-      #"-modulate #{ level + 100 }"#,#{ level + 100 }" # second parameter is saturation. this one has channel clipping issues
-      #"-modulate #{ level + 100 } -blur 0x#{ level }" # experiment, color starvation -> heavy banding
-      #"-brightness-contrast #{ level }x#{ level }" # not in ubuntu 10.04's im 6.5.7-8, crushes off into swamp blacks
-    end
-    
     def check_external( requirements )
       available_tools = Array.new
       missing_tools = Array.new
@@ -119,8 +112,8 @@ module OutputType
   end
   
   class KDMOutputType < OutputType
-    def initialize(mandatory)
-      super(mandatory)
+    def initialize(mandatory, dcp_functions)
+      super(mandatory, dcp_functions)
     end
     def final_report (context)
       @logger.info( "Pick up KDM at #{ context.workdir }" )
@@ -129,29 +122,27 @@ module OutputType
   end # KDMOutputType
   
   class AudioVideoOutputType < OutputType
-    attr_reader :dimensions, :workdir, :conformdir, :j2cdir, :thumbsdir, :assetsdir, :assetsdir_audio, :keysdir, :cpmpress_parameter, :depth_parameter, :thumbs_dimensions
-    def initialize(mandatory)
-      super(mandatory)
+    attr_reader :dimensions, :workdir, :conformdir, :dcp_image_sequence_name, :thumbsdir, :assetsdir, :assetsdir_audio, :keysdir, :compress_parameter, :depth_parameter, :thumbs_dimensions, :jpeg2000_codec, :size, :dcp_wrap_stereoscopic
+    def initialize(mandatory, dcp_functions)
+      super(mandatory, dcp_functions)
       @dimensions = width_x_height
       @thumbs_dimensions = calc_thumbsdimensions(THUMB_DIMENSIONS_FACTOR)
+      @jpeg2000_codec = @options.jpeg2000_codec
+      @size = @options.size
+      @dcp_wrap_stereoscopic = @options.dcp_wrap_stereoscopic
     end
 
     # TODO we should probably feed already "create_output_type" with a list of SMPTE::DCPAsset elements.
     #
-    # But in this case MXF generation has to be delayed until SMPTE_DCP::SMPTE_DCP.add_cpl
+    # But in this case MXF generation has to be delayed until DCP::DCP.add_cpl
     def create_output_type( source, source_audio, signature_context)
       create_output_type2( source, source_audio, signature_context)
       final_report(Final_report_context.new(
-	@image_sequence.sequence_frames, @options.fps, @options.transition_and_timing, @options.keep, @image_sequence.framecount,  source, @workdir ))
+	@image_sequence.n_sequence_frames, @options.fps, @options.transition_and_timing, @options.keep, @image_sequence.framecount,  source, @workdir ))
       cleanup_workdir( @options.keep )
       done_message
     end
     
-    def convert_image_source_to_output_format(image_sequence)
-      image_sequence.create_leader
-      image_sequence.create_transitions
-      image_sequence.create_trailer
-    end
     
     private 
     
@@ -186,7 +177,7 @@ module OutputType
       display_summary(
 	Summary_context.new(
 	      source = source,
-	      sequence_frames = @image_sequence.sequence_frames,
+	      n_sequence_frames = @image_sequence.n_sequence_frames,
 	      signer_cert_obj = signature_context.signer_cert_obj
 	))  
       ### Process all images
@@ -206,7 +197,10 @@ module OutputType
 
       Dir.mkdir( @workdir ) unless File.exists?( @workdir )
       Dir.mkdir( @conformdir )
-      @image_sequence.image_sequence_to_output_format
+           
+      @image_sequence.create_leader
+      @image_sequence.create_transitions
+      @image_sequence.create_trailer
       ###
      
     end # create_output_type2
@@ -218,13 +212,13 @@ module OutputType
     def setup_output_directories(source_empty, source_audio_empty)
       @workdir = File.join( @cinemaslidesdir, "#{ File.basename( $0 ) }_#{ get_timestamp }_#{ @options.output_type }" )
       @conformdir = File.join( @workdir, "conform" )
-      @j2cdir = File.join( @workdir, "j2c" )
+      @dcp_image_sequence_name = File.join( @workdir, @dcp_functions.dcp_image_sequence_basename )
       @thumbsdir = File.join( @cinemaslidesdir, "thumbs" )
       @assetsdir = File.join( @cinemaslidesdir, "assets" )
       @assetsdir_audio = File.join( @cinemaslidesdir, 'assets-audio' )
       @keysdir = File.join( @cinemaslidesdir, 'keys' )
 
-      OptParser::Optparser.set_dcpdir_option(File.join( @workdir, "dcp" ))
+      OptParser::Optparser.set_dcpdir_option(File.join( @workdir, 'dcp' ))
 
       if confirm_or_create( @cinemaslidesdir )
 	@logger.debug( "#{ @cinemaslidesdir } is writeable" )
@@ -241,9 +235,9 @@ module OutputType
     end
     
     def final_report (context)
-      sequence_duration = context.sequence_frames / context.fps
+      sequence_duration = context.n_sequence_frames / context.fps
       frames = context.framecount - 1
-      @logger.debug( "#{ context.sequence_frames } frames intended by numbers (#{ hours_minutes_seconds_verbose( sequence_duration ) })" )
+      @logger.debug( "#{ context.n_sequence_frames } frames intended by numbers (#{ hours_minutes_seconds_verbose( sequence_duration ) })" )
       @logger.debug( "#{ frames } frames written" )
       @logger.info( "Cinema Slideshow is #{ hours_minutes_seconds_verbose( ( frames ) / context.fps ) } long (#{ context.source.length } image#{ 's' * ( context.source.length == 1 ? 0 : 1 )} | #{ context.transition_and_timing.join(',').gsub(' ', '') } | #{ frames } frames | #{ context.fps } fps)" )
     end
@@ -316,14 +310,14 @@ module OutputType
   
   class PreviewOutputType < AudioVideoOutputType
     attr_reader :compress_parameter, :depth_parameter
-    def initialize(mandatory)
-      super(mandatory)
-      @compress_parameter = " "
+    def initialize(mandatory, dcp_functions)
+      super(mandatory, dcp_functions)
+      @compress_parameter = "  "
       @depth_parameter    = "-depth 8 "
     end
     
     def convert_resize_extent_color_specs( image, filename )
-      ShellCommands.p_IM_convert_resize_extent_color_specs( image, filename, @options.resize, @dimensions, @depth_parameter, @compress_parameter)
+      ShellCommands.p_IM_convert_resize_extent_color_specs( image, filename, @options.resize, @dimensions)
     end
 
     def convert_apply_level( image, level, filename )
@@ -370,29 +364,29 @@ module OutputType
       @logger.info( "Creating #{ @options.output_type } (#{ @options.aspect } #{ @dimensions } @ #{ @options.fps } fps)" )
       @logger.info( "Number of images: #{ summary_context.source.size }" )
       @logger.info( "Transition specs: #{ @options.transition_and_timing.join( ',' ) }" )
-      @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.sequence_frames / @options.fps ) }" )
+      @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.n_sequence_frames / @options.fps ) }" )
     end
                 
   end # PreviewOutputType
   
   class DCPOutputType < AudioVideoOutputType
     attr_reader :compress_parameter, :depth_parameter
-    def initialize(mandatory)
-      super(mandatory)
+    def initialize(mandatory, dcp_functions)
+      super(mandatory, dcp_functions)
       @compress_parameter = "-compress none "
       @depth_parameter    = "-depth 12 "
     end
         
     def convert_resize_extent_color_specs( image, filename )
-      ShellCommands.d_IM_convert_resize_extent_color_specs( image, filename, @options.resize, @dimensions, @depth_parameter, @compress_parameter)
+      ShellCommands.smpte_dcp_IM_convert_resize_extent_color_specs( image, filename, @options.resize, @dimensions)
     end
     
     def convert_apply_level( image, level, filename )
-      ShellCommands.d_IM_convert_apply_level( image, fadetype( level ), filename, @depth_parameter)
+      ShellCommands.smpte_dcp_IM_convert_apply_level( image, level, filename)
     end  
     
     def create_blackframe (file)
-       ShellCommands.d_IM_black_frame( file, @dimensions )
+       ShellCommands.smpte_dcp_IM_black_frame( file, @dimensions )
     end
     
     def all_mandatory_tools_available?
@@ -401,7 +395,7 @@ module OutputType
 	@logger.warn( "No JPEG 2000 codec available (Needed for DCP creation). Check your installation" )
 	return FALSE
       end
-      enc = encoder_prog[@options.encoder]
+      enc = encoder_prog[@options.jpeg2000_codec]
       if missing_codecs.include?( enc )
 	@logger.info( "#{ enc } not available. Check your installation" )
 	return FALSE
@@ -425,22 +419,27 @@ module OutputType
         
     def asset_suffix(suffix)
       fps_suffix = @options.dcp_wrap_stereoscopic ? '48' : @options.fps.floor.to_s 
-      dcp_output_type_suffix = suffix == 'j2c' ? '_' + encoder_ids[@options.encoder] + '_' + fps_suffix : ''
+      dcp_output_type_suffix = suffix == 'j2c' ? '_' + encoder_ids[@options.jpeg2000_codec] + '_' + fps_suffix : ''
       dcp_output_type_suffix + "_." + suffix
+      
+      
+#        assetname = File.join( @assetsdir, id + "_#{ @dimensions }_#{ @resize == TRUE ? 'r' : 'nr' }#{ level.nil? ? '' : '_' + level.to_s }#{ @output_type == 'dcp' ? suffix == 'j2c' ? '_' + @encoder_id + '_' + ( @dcp_wrap_stereoscopic == TRUE ? '48' : fps.floor.to_s ) : '' : '_pre' }_.#{ suffix }" )
+
+      
+      
     end
 
-
-    def convert_image_source_to_output_format( image_sequence )
-      super( image_sequence )
-      jpeg2000_conversion( image_sequence )
-    end
-    
     
     private 
     
 
     def create_output_type2( source, source_audio, signature_context)
       super( source, source_audio, signature_context)
+      
+      # jpeg2000_conversion( @image_sequence )
+      @dcp_functions.convert_to_dcp_image_format( @image_sequence, self )
+      
+      
       image_mxf_track = MXF::VideoMXFTrack.new(
 	dcpdir = @options.dcpdir, 
 	keysdir = @keysdir,
@@ -448,7 +447,7 @@ module OutputType
 	dcp_encrypt = @options.dcp_encrypt, 
 	fps = @options.fps)
       @logger.info( 'Write image trackfile ...' )  
-      image_mxf_track.write_asdcp_track( file =  @j2cdir)
+      image_mxf_track.write_asdcp_track( file =  @dcp_image_sequence_name)
       @logger.debug( "Image trackfile UUID: #{ image_mxf_track.mxf_uuid }" )
       
       unless source_audio.empty?
@@ -463,30 +462,31 @@ module OutputType
 	@logger.debug( "Audio trackfile UUID: #{ audio_mxf_track.mxf_uuid }" )
       end
       
-      smpte_dcp = SMPTE_DCP::SMPTE_DCP.new(
+      smpte_dcp = DCP::DCP.new(
 	  dcpdir            = @options.dcpdir,
 	  issuer            = @options.issuer,
 	  creator           = "#{ AppName } #{ AppVersion } smpte",
 	  annotation        = @options.annotation,
 	  sign              = @options.sign,
-	  signature_context = signature_context)
+	  signature_context = signature_context,
+	  dcp_functions     = @dcp_functions)
  
 #for testing
       subtitle_filename =  "/home/home-10.1/Documents/Programmkino/DCP-TEST/Untertitel/Maener_al_Dente_dtUt_R4.xml" 
       font_filename = "/home/home-10.1/Documents/Programmkino/DCP-TEST/Untertitel/arial.ttf"
 #for testing
       
-      dcp_audio_asset = source_audio.empty? ? nil : SMPTE_DCP::DCPMXFAudioAsset.new( audio_mxf_track.mxf_file_name )
-      dcp_image_asset = SMPTE_DCP::DCPMXFImageAsset.new( image_mxf_track.mxf_file_name )
+      dcp_audio_asset = source_audio.empty? ? nil : DCP::DCPMXFAudioAsset.new( audio_mxf_track.mxf_file_name )
+      dcp_image_asset = DCP::DCPMXFImageAsset.new( image_mxf_track.mxf_file_name )
             
 # for testing      
-      line1 = SMPTE_DCP::DCSubtitleLine.new("bottom", "center", 0, 7, "Ja, unser mündlicher Vertrag war anders,")
-      line2 = SMPTE_DCP::DCSubtitleLine.new("bottom", "center", 0, 14, "Ja, unser mündlicher Vertrag war anders,")
-      st1 = SMPTE_DCP::DCSingleSubtitle.new( "00:00:00:011", "00:00:03:042", 0, 0, [line1])
-      st2 = SMPTE_DCP::DCSingleSubtitle.new( "00:00:07:011", "00:00:10:042", 0, 0, [line1, line2])
+      line1 = DCP::DCSubtitleLine.new("bottom", "center", 0, 7, "Ja, unser mündlicher Vertrag war anders,")
+      line2 = DCP::DCSubtitleLine.new("bottom", "center", 0, 14, "Ja, unser mündlicher Vertrag war anders,")
+      st1 = DCP::DCSingleSubtitle.new( "00:00:00:011", "00:00:03:042", 0, 0, [line1])
+      st2 = DCP::DCSingleSubtitle.new( "00:00:07:011", "00:00:10:042", 0, 0, [line1, line2])
       
       st_uuid = ShellCommands.uuid_gen
-      dc_subtitle = SMPTE_DCP::DC_SUBTITLE.new( 
+      dc_subtitle = DCP::DC_SUBTITLE.new( 
 	subtitle_id       =  st_uuid, 
 	movie_title       = "testmovie", 
 	reel_number       = 1, 
@@ -499,14 +499,14 @@ module OutputType
 	font_effect       = "shadow", 
 	font_effect_color = "FF000000", 
 	subtitle_list     = [st1, st2] )
-      st_filename = SMPTE_DCP::SMPTE_DCP::st_file( @options.dcpdir, st_uuid )
+      st_filename = DCP::DCP::st_file( @options.dcpdir, st_uuid )
       File.open( st_filename, 'w' ) { |f| f.write( dc_subtitle.xml ) } if TESTING
        
-      dcp_subtitle_asset = SMPTE_DCP::DCPSubtitleAsset.new( st_filename, edit_rate = "24 1", intrinsic_duration=168, entry_point=0, duration=168)
+      dcp_subtitle_asset = DCP::DCPSubtitleAsset.new( st_filename, edit_rate = "24 1", intrinsic_duration=168, entry_point=0, duration=168) if TESTING
 #for testing
       
       smpte_dcp.add_cpl(
-	[ SMPTE_DCP::DCPReelWithAssets.new(
+	[ DCP::DCPReel.new(
            dcp_image_asset, 
            dcp_audio_asset,
            subtitle_asset = !TESTING ? nil : dcp_subtitle_asset # for testing
@@ -516,7 +516,7 @@ module OutputType
 	rating_list = nil
       )
       
-      smpte_dcp.add_font(font_filename, SMPTE_DCP::MIMETYPE_TTF)  if TESTING
+      smpte_dcp.add_font(font_filename, DCP::MIMETYPE_TTF)  if TESTING
       
       smpte_dcp.write_ov_dcp
            
@@ -527,10 +527,10 @@ module OutputType
     end
     
     def display_summary (summary_context)
-      @logger.info( "Creating#{ @options.sign ? ' signed' : '' }#{ @options.dcp_encrypt ? ' and encrypted' : '' }#{ @options.dcp_wrap_stereoscopic ? ' 3D' : ' 2D' } #{ @options.size.upcase } DCP (#{ @options.aspect } #{ @dimensions } @ #{ @options.fps } fps). Encoder: #{ @options.encoder }" )
+      @logger.info( "Creating#{ @options.sign ? ' signed' : '' }#{ @options.dcp_encrypt ? ' and encrypted' : '' }#{ @options.dcp_wrap_stereoscopic ? ' 3D' : ' 2D' } #{ @options.size.upcase } DCP (#{ @options.aspect } #{ @dimensions } @ #{ @options.fps } fps). Encoder: #{ @options.jpeg2000_codec }" )
       @logger.info( "Number of images: #{ summary_context.source.size }" )
       @logger.info( "Transition specs: #{ @options.transition_and_timing.join( ',' ) }" )
-      @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.sequence_frames / @options.fps ) }" )
+      @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.n_sequence_frames / @options.fps ) }" )
       @logger.info( "Title:            #{ @options.dcp_title }" )
       @logger.info( "Annotation:       #{ @options.annotation }" )
       @logger.info( "Issuer:           #{ @options.issuer }" )
@@ -548,48 +548,58 @@ module OutputType
     end
     
     def cleanup_workdir(keep)
-      super(keep, [ @conformdir, @j2cdir, @workdir ]  )
+      super(keep, [ @conformdir, @dcp_image_sequence_name, @workdir ]  )
     end
     
     def done_message
         @logger.info( "DCP done" )
     end
 
-    def jpeg2000_conversion( image_sequence )
-      Dir.mkdir( @j2cdir )
-      ## JPEG 2000 encoding
-      @logger.info( "Encode to JPEG 2000" )
-      filemask = File.join( @conformdir, "*.#{ @options.output_format }" )
-      files = Dir.glob( filemask ).sort
-	
-      counter = 0
-      previous_asset = ""
-      
-      encoder = Encoder.const_get(encoder_classnames[@options.encoder]).new(
-	size = @options.size,
-	stereo = @options.dcp_wrap_stereoscopic,
-	fps = @options.fps)
-      
-      files.each do |file|
-	counter += 1
-	asset_link = File.join( @j2cdir, File.basename( file ).gsub( '.tiff', '' ) + '.j2c' )
-	if File.dirname( File.readlink( file ) ) == @conformdir # 1st file is always a link to the asset depot
-	  @logger.debug( "link previous_asset = #{ previous_asset }, asset_link = #{ asset_link }" )
-	  File.link( File.expand_path(previous_asset), asset_link ) 
-	  @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ counter } of #{ files.size })" )
-	else
-	  asset, todo = image_sequence.asset_functions.check_for_asset( file, 'j2c', level = nil ) # possible "Skip" message only with debug verbosity
-	  previous_asset = asset
+#    def jpeg2000_conversion( image_sequence )
+#      
+#      # Global:
+#      #		@logger
+#      #		@dcp_image_sequence_name
+#      #		@options.jpeg2000_codec
+#      #		@options.size
+#      #		@options.dcp_wrap_stereoscopic
+#      #		
+#      
+#      Dir.mkdir( @dcp_image_sequence_name )
+#      ## JPEG 2000 encoding
+#      @logger.info( "Encode to JPEG 2000" )
+#      filemask = File.join( image_sequence.conformdir, "*.#{ image_sequence.output_format }" )
+#      files = Dir.glob( filemask ).sort
+#
+#      counter = 0
+#      previous_asset = ""
+#      
+#      encoder = Encoder.const_get(encoder_classnames[@options.jpeg2000_codec]).new(
+#	size = @options.size,
+#	stereo = @options.dcp_wrap_stereoscopic,
+#	fps = image_sequence.fps)
+#      
+#      files.each do |file|
+#	counter += 1
+#	asset_link = File.join( @dcp_image_sequence_name, File.basename( file ).gsub( '.tiff', '' ) + '.j2c' )
+#	if File.dirname( File.readlink( file ) ) == image_sequence.conformdir # 1st file is always a link to the asset depot
+#	  @logger.debug( "link previous_asset = #{ previous_asset }, asset_link = #{ asset_link }" )
+#	  File.link( File.expand_path(previous_asset), asset_link ) 
+#	  @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ counter } of #{ files.size })" )
+#	else
+#	  asset, todo = image_sequence.asset_functions.check_for_asset( file, 'j2c', level = nil ) # possible "Skip" message only with debug verbosity
+#	  previous_asset = asset
 #	  @logger.debug( "TODO = #{ todo }, @options.output_format = #{ @options.output_format } ")
-	  if todo
-	    @logger.cr( "#{ @options.encoder }: #{ File.basename( file ) } (#{ counter } of #{ files.size })" )
-	    @logger.debug("@options.encoder = #{ @options.encoder }")
-	    encoder.encode( file, asset )
-	  end
-	  File.link( File.expand_path(asset),  asset_link )
-	end
-      end
-    end
+#	  if todo
+#	    @logger.cr( "#{ @options.jpeg2000_codec }: #{ File.basename( file ) } (#{ counter } of #{ files.size })" )
+#	    @logger.debug("@options.jpeg2000_codec = #{ @options.jpeg2000_codec }")
+#	    @logger.debug("Encode  >>#{file}<< to >>#{asset}<<. ");
+#	    encoder.encode( file, asset )
+#	  end
+#	  File.link( File.expand_path(asset),  asset_link )
+#	end
+#      end
+#    end # jpeg2000_conversion
 
     def setup_output_directories(source_empty, source_audio_empty)
       super(source_empty, source_audio_empty)
