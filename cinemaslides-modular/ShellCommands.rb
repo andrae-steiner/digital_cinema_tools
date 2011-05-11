@@ -32,10 +32,10 @@ module ShellCommands
       `openssl dgst -sha1 -binary #{ file } | openssl base64`
     end
     def self.openssl_sha1_64_string (string)
-      `echo "#{string}" | openssl dgst -sha1 -binary | openssl base64`
+      `echo -n '#{string}' | openssl dgst -sha1 -binary | openssl base64`
     end
     def self.base64(s) 
-      `echo '#{ s }' | openssl base64 -d`
+      `echo -n '#{s}' | openssl base64 -d`
     end
     # sh does not accept named pipes created by process substitution, so we have to call bash
     # 

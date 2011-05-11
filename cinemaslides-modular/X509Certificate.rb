@@ -49,39 +49,6 @@ module X509Certificate
       @certs.size
     end
     
-
-    # FIXME auch in initialize integrieren andrae.steiner@liwest.at
-    # 
-    # @cinemacertstore is set. check if it points at something useable
-    def generic_signature_context
-      files = Dir.glob( File.join( @cinemacertstore, '*.pem' ) )
-      certs = Array .new
-      root_ca = NIL
-      
-      files.each do |file|
-	if File.is_file( file )
-	  begin
-	    certs << OpenSSL::X509::Certificate.new( File.read( file ) )
-	    @logger.debug( certs.last.subject.to_s )
-	  rescue OpenSSL::X509::CertificateError => e
-	    puts e.message
-	  end
-	else
-	  @logger.debug( "Skip #{ file }" )
-	end
-      end
-      
-      certs.each do |cert|
-	if cert.issuer == cert.subject
-	  # root candidate. tbc
-	else
-	  # intermediate or leaf. tbc
-	end
-      end
-      
-    end
-
-    
     
   end # X509CertificateChain
 

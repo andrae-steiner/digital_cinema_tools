@@ -69,6 +69,7 @@ module InputType
       # check provided files for readability, type and validity
       # come up with 3 lists: image files, audio files, unusable files
 #      @source = ARGV
+# FIXME filenames with spaces won't work. bummer
       source_audio = Array.new
       if @dont_check ####
 	if @source.empty?

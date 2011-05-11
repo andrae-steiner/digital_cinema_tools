@@ -400,8 +400,12 @@ module OutputType
 	@logger.info( "#{ enc } not available. Check your installation" )
 	return FALSE
       end
+      if @options.sign
+	mandatory << 'xmlsec1'
+      end
       if @options.dcp_encrypt
-	@mandatory << 'kmrandgen'
+	mandatory << 'kmrandgen'
+	mandatory << 'xmlsec1'
       end
       available_mandatory, missing_mandatory = check_external( @mandatory )
       available_mandatory += available_codecs unless available_codecs.nil?

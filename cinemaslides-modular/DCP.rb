@@ -197,7 +197,7 @@ module DCP
 	cpl = cpl_new
       end # if
       @cpls << CPLInfo.new(cpl_uuid, cpl.xml)
-            
+                   
       # add assets of this dcp and the dcp itsself to the packing list
       dcp_reels.each do |reel| @packing_list << reel.assets_to_a end
       @packing_list << DCPPKLAsset.create_asset( 
@@ -276,6 +276,8 @@ module DCP
       @pkl_assets = Array.new
             
       # FIXME  also the fonts used in the subtitles have to go into the asset and packing list
+      # TODO  check: I think this is already done
+      
       
       # Feed the DCP_Assets of the cpls created plus the cpl into pkl_assets.
       @pkl_assets << @packing_list

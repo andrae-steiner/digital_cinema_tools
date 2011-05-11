@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-AppVersion = "v0.2010.12.23"
+AppVersion = "v0.2011.05.11"
 AppName = File.basename( $0 )
 #
 # Wolfgang Woehl v0.2010
@@ -220,6 +220,7 @@ module DCTools
                     
   
   def cipher_data_payload_binary_package( signer_cert_thumbprint, cpl_id, key_type, key_id, kdm_not_valid_before, kdm_not_valid_after, key )
+    # see SMPTE 430-1-2006 section 6.1.2 Cipher Data
     structure_id_bin = %w( f1 dc 12 44 60 16 9a 0e 85 bc 30 06 42 f8 66 ab ).pack( 'H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2' )
     signer_cert_thumbprint_bin = ShellCommands::ShellCommands.base64(signer_cert_thumbprint)
     cpl_id_bin = uuid_to_bin( cpl_id )
@@ -341,6 +342,12 @@ exit if !files_ok
 
 
 TODO = <<TODO
+
+FIXME source filenames with spaces:
+  a) shell removes protection and hands over unprotected args
+  b) cinemaslides/ruby would have to re-protect spaces when calling shell stuff (convert etc.)
+     but needs unprotected filenames for internal stuff
+  some on-the-fly protection needed here
 
 FIXME certificate handling and KDM mode, although working, need re-design to allow for more flexibility
 FIXME output some basic help message when app is called without any args. as it is app merely utters 'No image files specified'
