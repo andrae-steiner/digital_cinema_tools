@@ -1,7 +1,7 @@
 module ShellCommands
     
   class ShellCommands
-    def self.image_identify_command (file)
+    def self.image_identify_command( file )
       `identify -ping -format '%m' #{ file } 2>/dev/null`    
     end
     def self.soxi_V0_t_command(file)
@@ -10,7 +10,7 @@ module ShellCommands
     def self.soxi_V0_d_command(file)
       `soxi -V0 -d #{ file } 2>&1`
     end
-    def self.soxi_D_command (file)
+    def self.soxi_D_command( file )
       `soxi -D #{ file }`
     end
     def self.sox_splice_command( *list )
@@ -19,19 +19,19 @@ module ShellCommands
     def self.sox_trim_command( sequence_audio_asset_tmp, sequence_audio_asset, image_sequence_length_hms)
       `sox #{ sequence_audio_asset_tmp } #{ sequence_audio_asset } trim 0 #{ image_sequence_length_hms }`
     end
-    def self.sox_to_PCM24_command ( audiofile, samplerate, bps, channelcount, asset)
+    def self.sox_to_PCM24_command( audiofile, samplerate, bps, channelcount, asset)
       `sox #{ audiofile } -r #{ samplerate } -b #{ bps } -c #{ channelcount } -s -t wavpcm #{ asset } gain -n -20`  
     end
-    def self.sox_silence_command (samplerate, bps, channelcount, silence_conform, seconds)
+    def self.sox_silence_command( samplerate, bps, channelcount, silence_conform, seconds )
       `sox -r #{ samplerate } -b #{ bps } -c #{ channelcount } -s -n #{ silence_conform } synth #{ seconds } sine 0`
     end
-    def self.IM_convert_info_command(file)
+    def self.IM_convert_info_command( file )
       `convert #{ file } -format '(%wx%h, 1:%[fx:w/h])' info:`
     end
-    def self.openssl_sha1_64 (file)
+    def self.openssl_sha1_64( file )
       `openssl dgst -sha1 -binary #{ file } | openssl base64`
     end
-    def self.openssl_sha1_64_string (string)
+    def self.openssl_sha1_64_string( string ) 
       `echo -n '#{string}' | openssl dgst -sha1 -binary | openssl base64`
     end
     def self.base64(s) 
@@ -121,6 +121,7 @@ module ShellCommands
 	  -type TrueColor \
 	  -gamma 0.38461538461538458 \
 	  -fill black -colorize #{ level.abs } \
+	  -gamma 2.6 \
 	  -depth 12  \
 	  -compress none \
 	  #{ filename }`
@@ -142,7 +143,7 @@ module ShellCommands
       Logger::Logger.instance.debug( asdcp_line )
       `#{ asdcp_line }`
     end
-    def self.IM_convert_thumb (single_source, thumbs_dimensions, thumbasset)
+    def self.IM_convert_thumb(single_source, thumbs_dimensions, thumbasset)
       `convert #{ single_source } \
 	-type TrueColor \
 	-resize #{ thumbs_dimensions } \
@@ -173,8 +174,8 @@ module ShellCommands
     end
     def self.opendcp_j2k_command( file, asset, additional_options )
       @logger = Logger::Logger.instance
-      @logger.debug ("OpenDcp COMMAND = " + "opendcp_j2k -i #{ file } -o #{ asset } #{ additional_options }")
-      `opendcp_j2k -i #{ file } -o #{ asset } #{ additional_options }`
+      @logger.debug("OpenDcp COMMAND = opendcp_j2k -i #{ file } -o #{ asset } -x #{ additional_options }")
+      `opendcp_j2k -i #{ file } -o #{ asset } -x #{ additional_options }`
     end
     def self.kakadu_encode_command( file, asset, profile, max_bpi, max_bpc)
       `kdu_compress -i #{ file } -o #{ asset } Sprofile=#{ profile } Creslengths=#{ max_bpi } Creslengths:C0=#{ max_bpi },#{ max_bpc } Creslengths:C1=#{ max_bpi },#{ max_bpc } Creslengths:C2=#{ max_bpi },#{ max_bpc }`

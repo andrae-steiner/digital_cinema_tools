@@ -41,7 +41,7 @@ module Encoder
 	@max_bytes_per_image, @max_bytes_per_component = jpeg2000_dcp_rate_constraints( stereo ? 48.0 : fps )
       end
       def encode(file, asset)
-	ShellCommands.kakadu_encode_command( file, asset, @profile, @max_bytes_per_component, @max_bytes_per_component)
+	ShellCommands.kakadu_encode_command( file, asset, @profile, @max_bytes_per_image, @max_bytes_per_component)
       end
       
       private 
