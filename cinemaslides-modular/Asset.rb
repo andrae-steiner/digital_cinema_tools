@@ -34,9 +34,11 @@ module Asset
       return assetname, todo
     end  
     def digest_over_content( file )
+      @logger.debug(" digest_over_content file = #{file}.")
       Digest::MD5.hexdigest( File.read( file ) )
     end
     def digest_over_file_basename( file )
+      @logger.debug(" digest_over_file_basename file = #{file}.")
       Digest::MD5.hexdigest( File.basename( file ) )
     end
     def digest_over_string( s )
@@ -87,6 +89,7 @@ module Asset
     def initialize(output_type_obj, resize)
       super(output_type_obj)
       @resize = resize
+      @expanded_assetsdir = File.expand_path(@output_type_obj.assetsdir)
     end
     def check_for_black_asset( suffix, level = nil )
       check_for_asset_2( FILENAME_BLACK_FRAME, suffix, filename_to_asset_conversion_proc, nil )
@@ -118,7 +121,7 @@ module Asset
     # members of the asset depot will trigger a cheaper and good enough digest over filename (which is in part an md5 digest)
     #   + dimensions + (level unless jpeg 2000 codestream requested) + (encoder + fps if jpeg 2000 codestream is requested) + suffix
     def filename_hash2( file)
-      if File.dirname( file ) != @output_type_obj.assetsdir
+      if File.expand_path(File.dirname( file )) != @expanded_assetsdir 
         digest_over_content( file )
       else
         digest_over_file_basename( file )

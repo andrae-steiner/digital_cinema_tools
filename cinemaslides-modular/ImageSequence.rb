@@ -61,7 +61,7 @@ module ImageSequence
     def self.n_of_images_ok?(source)
       TRUE
     end
-    
+        
     def framecount
       @file_sequence.framecount
     end
@@ -243,6 +243,9 @@ module ImageSequence
     end
 
     def make_black_sequence( duration )
+      if (duration < 1) 
+	return
+      end
       blackfile = @file_sequence.next_file
       make_black_frame( blackfile )
       @file_sequence.sequence_links_to( blackfile, duration )

@@ -441,8 +441,7 @@ module OutputType
       super( source, source_audio, signature_context)
       
       # jpeg2000_conversion( @image_sequence )
-      @dcp_functions.convert_to_dcp_image_format( @image_sequence, self )
-      
+      @dcp_functions.convert_to_dcp_image_format_threaded( @image_sequence, self )
       
       image_mxf_track = MXF::VideoMXFTrack.new(
 	dcpdir = @options.dcpdir, 
@@ -450,9 +449,11 @@ module OutputType
 	steroscopic = @options.dcp_wrap_stereoscopic, 
 	dcp_encrypt = @options.dcp_encrypt, 
 	fps = @options.fps)
-      @logger.info( 'Write image trackfile ...' )  
-      image_mxf_track.write_asdcp_track( file =  @dcp_image_sequence_name)
-      @logger.debug( "Image trackfile UUID: #{ image_mxf_track.mxf_uuid }" )
+      t1 = Thread.new do
+	@logger.info( 'Write image trackfile ...' )  
+	image_mxf_track.write_asdcp_track( file =  @dcp_image_sequence_name)
+	@logger.debug( "Image trackfile UUID: #{ image_mxf_track.mxf_uuid }" )
+      end
       
       unless source_audio.empty?
 	audio_mxf_track = MXF::AudioMXFTrack.new(
@@ -460,11 +461,16 @@ module OutputType
 	  keysdir = @keysdir,
 	  dcp_encrypt = @options.dcp_encrypt, 
 	  fps = @options.fps)
-	@logger.info( 'Write audio trackfile ...' )
-	# FIXME 2.0 sound only here (v0.2010.11.19), hence no label. might be trouble on some servers
-	audio_mxf_track.write_asdcp_track( file =  @final_audio)
-	@logger.debug( "Audio trackfile UUID: #{ audio_mxf_track.mxf_uuid }" )
+        t2 = Thread.new do
+	  @logger.info( 'Write audio trackfile ...' )
+	  # FIXME 2.0 sound only here (v0.2010.11.19), hence no label. might be trouble on some servers
+	  audio_mxf_track.write_asdcp_track( file =  @final_audio)
+	  @logger.debug( "Audio trackfile UUID: #{ audio_mxf_track.mxf_uuid }" )
+	end
       end
+      
+      t1.join()
+      t2.join() if (!source_audio.empty?)
       
       smpte_dcp = DCP::DCP.new(
 	  dcpdir            = @options.dcpdir,

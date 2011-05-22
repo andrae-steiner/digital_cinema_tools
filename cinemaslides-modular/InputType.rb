@@ -47,12 +47,19 @@ module InputType
 	return Array.new, Array.new, Array.new, FALSE
       end
       @image_output_dir = File.join(@cinemaslidesdir, "tif_from_av_#{ get_timestamp }")
+#      @image_output_dir = "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00"
+      
       Dir.mkdir( @image_output_dir )
       @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_" +AudioSequence::FILE_SUFFIX_PCM)
+#      @audio_from_av = "/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"
       # TODO create a method in ShellCommands for this
       `ffmpeg -y -i "#{ @avfile }" -an -r 24  -threads 8 -b 10000k #{File.join(@image_output_dir, "%06d.tiff")}`
       `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 24 -ar 48000 #{ @audio_from_av }`
+      
+#      return Dir.glob( "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00/*" ).sort,  ["/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"], nil, TRUE
+      
       return Dir.glob( "#{ @image_output_dir }/*" ).sort,  [@audio_from_av], nil, TRUE
+      
     end
   end
 
