@@ -299,29 +299,20 @@ module ImageSequence
     
     def create_transitions
       # Process all images
-      keeper = nil # keep a conform for the next crossfade (2nd will be 1st then, don't conform again)
-      @source.each_index do |index|
+
+      keeper = conform( @source[ 0 ] ) # keep a conform for the next crossfade (2nd will be 1st then, don't conform again)
+      indices = @source.each_index.to_a
+      indices = (indices - [indices.last])
+      indices.each  do |index|
 	@imagecount += 1
-	case index
-	when 0 # first image
-	  image1 = conform( @source[ index ] )
-	  image2 = conform( @source[ index + 1 ] )
-	  keeper = image2
-	  #fade_in( image1, @fps, @crossfade_time )
-	  full_level( image1,  @duration )
-	  crossfade( image1, image2,  @crossfade_time )
-	when @source.length - 1 # last image
-	  image = keeper
-	  full_level( image,  @duration )
-	  #fade_out( image, @fps, @crossfade_time )
-	else
-	  image1 = keeper
-	  image2 = conform( @source[ index + 1 ] )
-	  keeper = image2
-	  full_level( image1,  @duration )
-	  crossfade( image1, image2,  @crossfade_time )
-	end
+	image1 = keeper
+	image2 = conform( @source[ index + 1 ] )
+	keeper = image2
+	full_level( image1,  @duration )
+	crossfade( image1, image2,  @crossfade_time )
       end
+      # last image
+      full_level( keeper,  @duration )
             
     end
     
