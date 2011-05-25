@@ -3,10 +3,25 @@ module DCPFunctions
   require 'Logger'
   require 'Encoder'
   require 'ShellCommands'
+  require  'OptParser'
   
-  N_THREADS = 8
 	
   class DCPFunctions
+    def initialize
+      @imagecount = 0
+      @imagecount_mutex = Mutex.new
+      @N_THREADS = OptParser::Optparser.get_options.n_threads
+    end
+    def inc_imagecount
+      @imagecount_mutex.synchronize do
+	@imagecount += 1
+      end
+    end
+    def get_imagecount
+      @imagecount_mutex.synchronize do
+	@imagecount
+      end
+    end
     def cpl_ns
       "None"
     end
@@ -41,8 +56,6 @@ module DCPFunctions
   
   
   class MXFInterOpDCPFunctions < DCPFunctions
-    def initialize
-    end
     def cpl_ns
       "http://www.digicine.com/PROTO-ASDCP-CPL-20040511#"
     end
@@ -102,8 +115,6 @@ module DCPFunctions
   
                                 
   class SMPTEDCPFunctions < DCPFunctions
-    def initialize
-    end
     def cpl_ns
       "http://www.smpte-ra.org/schemas/429-7/2006/CPL"
     end
@@ -138,7 +149,7 @@ module DCPFunctions
       ShellCommands.smpte_dcp_IM_black_frame( file, dimensions )
     end                           
     
-    def convert_to_dcp_image_format_threaded (image_sequence, output_type)
+    def convert_to_dcp_image_format( image_sequence, output_type )
       logger = Logger::Logger.instance
       Dir.mkdir( output_type.dcp_image_sequence_name )
       ## JPEG 2000 encoding
@@ -147,12 +158,12 @@ module DCPFunctions
       files = Dir.glob( filemask ).sort
       
       threads = Array.new
-      N_THREADS.times do |i|
-	start_index = i*files.length/N_THREADS
-	end_index   = (i == (N_THREADS - 1)) ? files.length - 1 : (i + 1)*files.length/N_THREADS - 1
+      @N_THREADS.times do |i|
+	start_index = i*files.length/@N_THREADS
+	end_index   = (i == (@N_THREADS - 1)) ? files.length - 1 : (i + 1)*files.length/@N_THREADS - 1
         threads << Thread.new do
 	    logger.debug("START ENCODING THREAD")
-	    convert_to_dcp_image_format_2(start_index, files.size(), image_sequence, files[start_index..end_index], output_type)
+	    convert_to_dcp_image_format_2( files.size(), image_sequence, files[start_index..end_index], output_type )
         end  #       Thread.new do
       end # N_THREADS.times do |i|
       threads.each do |t|
@@ -160,7 +171,7 @@ module DCPFunctions
       end                            
     end # def convert_to_dcp_image_format_threaded (image_sequence, output_type)
                                 
-    def convert_to_dcp_image_format(image_sequence, output_type)
+    def convert_to_dcp_image_format_single_thread( image_sequence, output_type )
       logger = Logger::Logger.instance
       Dir.mkdir( output_type.dcp_image_sequence_name )
       ## JPEG 2000 encoding
@@ -168,14 +179,13 @@ module DCPFunctions
       filemask = File.join( image_sequence.conformdir, "*.#{ image_sequence.output_format }" )
       files = Dir.glob( filemask ).sort
       
-      convert_to_dcp_image_format_2(0, files.size(), image_sequence, files, output_type)
+      convert_to_dcp_image_format_2( files.size(), image_sequence, files, output_type )
 	
     end # convert_to_dcp_image_format(image_sequence, output_type)
     
-    def convert_to_dcp_image_format_2(start_index, n_total_images, image_sequence, files, output_type)
+    def convert_to_dcp_image_format_2( n_total_images, image_sequence, files, output_type )
       logger = Logger::Logger.instance
 	
-      counter = start_index
       previous_asset = ""
       
       encoder = Encoder.const_get(encoder_classnames[output_type.jpeg2000_codec]).new(
@@ -184,7 +194,7 @@ module DCPFunctions
 	fps = image_sequence.fps)
       
       files.each do |file|
-	counter += 1
+	inc_imagecount()
 	asset_link = File.join( output_type.dcp_image_sequence_name, File.basename( file ).gsub( '.tiff', '' ) + '.j2c' )
 	if File.dirname( File.readlink( file ) ) == image_sequence.conformdir # 1st file is always a link to the asset depot
 	  
@@ -198,10 +208,13 @@ module DCPFunctions
 	  
 	  logger.debug( "link previous_asset = #{ previous_asset }, asset_link = #{ asset_link }" )
 	  File.symlink( File.expand_path(previous_asset), asset_link ) 
-	  logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ counter } of #{ n_total_images })" )
-	  logger.debug( "Skip (Full level): #{ File.basename( file ) } (#{ counter } of #{ n_total_images })" )
+	  logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
+	  logger.debug( "Skip (Full level): #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
 	else
 	  
+	  # helps to speed up the check_for_asset calls
+	  # increases the chances that digest_over_file_basename is called in Module Asset
+	  # instead of digest_over_content
 	  while (File.symlink?(file)) do
             file = File.readlink(file)
           end
@@ -210,8 +223,8 @@ module DCPFunctions
 	  previous_asset = asset
 #	  logger.debug( "TODO = #{ todo }, @options.output_format = #{ @options.output_format } ")
 	  if todo
-	    logger.cr( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ counter } of #{n_total_images })" )
-	    logger.debug( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ counter } of #{ n_total_images })" )
+	    logger.cr( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ get_imagecount } of #{n_total_images })" )
+	    logger.debug( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
 	    logger.debug("@options.jpeg2000_codec = #{ output_type.jpeg2000_codec }")
 	    logger.debug("Encode  >>#{file}<< to >>#{asset}<<. ");
 	    encoder.encode( file, asset )

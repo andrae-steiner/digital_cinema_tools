@@ -198,9 +198,7 @@ module OutputType
       Dir.mkdir( @workdir ) unless File.exists?( @workdir )
       Dir.mkdir( @conformdir )
            
-      @image_sequence.create_leader
-      @image_sequence.create_transitions
-      @image_sequence.create_trailer
+      @image_sequence.create_image_sequence
       ###
      
     end # create_output_type2
@@ -441,7 +439,7 @@ module OutputType
       super( source, source_audio, signature_context)
       
       # jpeg2000_conversion( @image_sequence )
-      @dcp_functions.convert_to_dcp_image_format_threaded( @image_sequence, self )
+      @dcp_functions.convert_to_dcp_image_format( @image_sequence, self )
       
       image_mxf_track = MXF::VideoMXFTrack.new(
 	dcpdir = @options.dcpdir, 
@@ -564,52 +562,6 @@ module OutputType
     def done_message
         @logger.info( "DCP done" )
     end
-
-#    def jpeg2000_conversion( image_sequence )
-#      
-#      # Global:
-#      #		@logger
-#      #		@dcp_image_sequence_name
-#      #		@options.jpeg2000_codec
-#      #		@options.size
-#      #		@options.dcp_wrap_stereoscopic
-#      #		
-#      
-#      Dir.mkdir( @dcp_image_sequence_name )
-#      ## JPEG 2000 encoding
-#      @logger.info( "Encode to JPEG 2000" )
-#      filemask = File.join( image_sequence.conformdir, "*.#{ image_sequence.output_format }" )
-#      files = Dir.glob( filemask ).sort
-#
-#      counter = 0
-#      previous_asset = ""
-#      
-#      encoder = Encoder.const_get(encoder_classnames[@options.jpeg2000_codec]).new(
-#	size = @options.size,
-#	stereo = @options.dcp_wrap_stereoscopic,
-#	fps = image_sequence.fps)
-#      
-#      files.each do |file|
-#	counter += 1
-#	asset_link = File.join( @dcp_image_sequence_name, File.basename( file ).gsub( '.tiff', '' ) + '.j2c' )
-#	if File.dirname( File.readlink( file ) ) == image_sequence.conformdir # 1st file is always a link to the asset depot
-#	  @logger.debug( "link previous_asset = #{ previous_asset }, asset_link = #{ asset_link }" )
-#	  File.link( File.expand_path(previous_asset), asset_link ) 
-#	  @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ counter } of #{ files.size })" )
-#	else
-#	  asset, todo = image_sequence.asset_functions.check_for_asset( file, 'j2c', level = nil ) # possible "Skip" message only with debug verbosity
-#	  previous_asset = asset
-#	  @logger.debug( "TODO = #{ todo }, @options.output_format = #{ @options.output_format } ")
-#	  if todo
-#	    @logger.cr( "#{ @options.jpeg2000_codec }: #{ File.basename( file ) } (#{ counter } of #{ files.size })" )
-#	    @logger.debug("@options.jpeg2000_codec = #{ @options.jpeg2000_codec }")
-#	    @logger.debug("Encode  >>#{file}<< to >>#{asset}<<. ");
-#	    encoder.encode( file, asset )
-#	  end
-#	  File.link( File.expand_path(asset),  asset_link )
-#	end
-#      end
-#    end # jpeg2000_conversion
 
     def setup_output_directories(source_empty, source_audio_empty)
       super(source_empty, source_audio_empty)

@@ -23,17 +23,31 @@ module OptParser
   ASPECT_CHOICE_FLAT = 'flat'
   ASPECT_CHOICE_SCOPE = 'scope'
   ASPECT_CHOICE_HD = 'hd'
+  ASPECT_CHOICES = [ASPECT_CHOICE_FLAT, ASPECT_CHOICE_SCOPE, ASPECT_CHOICE_HD]
   SAMPLE_RATE_CHOICE_48000 = '48000'
   SAMPLE_RATE_CHOICE_48K   = '48k'
   SAMPLE_RATE_CHOICE_96000 = '96000'
   SAMPLE_RATE_CHOICE_96K   = '96k'
-
+  DCP_KIND_FEATURE      = 'feature'
+  DCP_KIND_TRAILER      = 'trailer'
+  DCP_KIND_TEST         = 'test'
+  DCP_KIND_TEASER       = 'teaser'
+  DCP_KIND_RATING       = 'rating'
+  DCP_KIND_ADVERTISMENT = 'advertisement'
+  DCP_KIND_SHORT        = 'short'
+  DCP_KIND_TRANSITIONAL = 'transitional'
+  DCP_KIND_PSA          = 'psa'
+  DCP_KIND_POLICY       = 'policy'
+  DCP_TITLE = 'Cinemaslides test'
+  FPS_DCP_CHOICES = [ 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ]
+  FPS_ASDCP_CHOICES = [ 23.976, 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ] # 24000/1001 not DCI compliant but shows up in asdcplib. Why?
+  AUDIO_BPS_16 = '16'
+  AUDIO_BPS_24 = '24'
+  
   # FIXME further constants
-  #     options.fps_dcp_choices = [ 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ]
-  #  options.fps_asdcp_choices = [ 23.976, 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ] # 24000/1001 not DCI compliant but shows up in asdcplib. Why?
-  #  options.audio_bps_choices = [ '16', '24' ]
-  #  options.dcp_kind_choices = [ 'feature', 'trailer', 'test', 'teaser', 'rating', 'advertisement', 'short', 'transitional', 'psa', 'policy' ]
   #  options.dcp_color_transform_matrix_choices = [ 'iturec709_to_xyz', 'srgb_to_xyz', '709', 'srgb', Regexp.new( '(\d+(\.\d+)?\s*){9,9}' ) ]
+  
+
 
 # FIXME catch missing parameters, false options, typos etc.
 class Optparser
@@ -49,12 +63,12 @@ class Optparser
     options.size = CONTAINER_SIZE_2K
     options.size_choices = [ CONTAINER_SIZE_2K, CONTAINER_SIZE_4K ]
     options.aspect = ASPECT_CHOICE_FLAT
-    options.aspect_choices = [ ASPECT_CHOICE_FLAT, ASPECT_CHOICE_SCOPE, ASPECT_CHOICE_HD, Regexp.new( '\d+(\.\d+)?x\d+(\.\d+)?' ) ] # custom aspect ratios: match '<numeric>x<numeric>'
+    options.aspect_choices = ASPECT_CHOICES + [ Regexp.new( '\d+(\.\d+)?x\d+(\.\d+)?' ) ] # custom aspect ratios: match '<numeric>x<numeric>'
     options.aspect_malformed = FALSE
     options.resize = TRUE # option to _not_ resize images (useful for images which are close to target dimensions and would suffer from scaling/-resize)
     options.fps = 24.0
-    options.fps_dcp_choices = [ 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ]
-    options.fps_asdcp_choices = [ 23.976, 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ] # 24000/1001 not DCI compliant but shows up in asdcplib. Why?
+    options.fps_dcp_choices = FPS_DCP_CHOICES
+    options.fps_asdcp_choices = FPS_ASDCP_CHOICES # 24000/1001 not DCI compliant but shows up in asdcplib. Why?
     options.jpeg2000_codec = ENCODER_CHOICE_OJ
     options.jpeg2000_codec_choices = [ ENCODER_CHOICE_OJ_TM, ENCODER_CHOICE_OJ, ENCODER_CHOICE_KAKADU  ]
     options.output_format = 'jpg'
@@ -64,12 +78,13 @@ class Optparser
     options.audio_samplerate = SAMPLE_RATE_CHOICE_48000.to_i
     options.audio_samplerate_choices = [ SAMPLE_RATE_CHOICE_48000, SAMPLE_RATE_CHOICE_48K, SAMPLE_RATE_CHOICE_96000, SAMPLE_RATE_CHOICE_96K ]
     options.audio_bps = 24
-    options.audio_bps_choices = [ '16', '24' ]
-    options.dcp_title = 'Cinemaslides test'
+    options.audio_bps_choices = [ AUDIO_BPS_16, AUDIO_BPS_24 ]
+    options.dcp_title = DCP_TITLE
     options.issuer = ENV[ 'USER' ] + '@' + ShellCommands::ShellCommands.hostname_command.chomp
     options.annotation = "#{ AppName } " + DateTime.now.to_s
-    options.dcp_kind = 'test'
-    options.dcp_kind_choices = [ 'feature', 'trailer', 'test', 'teaser', 'rating', 'advertisement', 'short', 'transitional', 'psa', 'policy' ]
+    options.dcp_kind = DCP_KIND_TEST
+    options.dcp_kind_choices = [   DCP_KIND_FEATURE, DCP_KIND_TRAILER, DCP_KIND_TEST, DCP_KIND_TEASER, DCP_KIND_RATING, 
+                                   DCP_KIND_ADVERTISMENT, DCP_KIND_SHORT, DCP_KIND_TRANSITIONAL, DCP_KIND_PSA, DCP_KIND_POLICY ]
     options.dcp_wrap_stereoscopic = FALSE
     options.dcp_user_output_path = nil
     options.dcp_color_transform_matrix = 'srgb_to_xyz'
@@ -100,16 +115,17 @@ class Optparser
     
     options.input_type_choices = [ INPUT_TYPE_CHOICE_SLIDE, INPUT_TYPE_CHOICE_AV ]
     options.input_type =  INPUT_TYPE_CHOICE_SLIDE
+    options.n_threads = 8
 
     opts = OptionParser.new do |opts|
       opts.banner = <<BANNER
 #{ AppName } #{ AppVersion } #{ ENV[ 'CINEMASLIDESDIR' ].nil? ? "\nExport CINEMASLIDESDIR to point to desired work directory needed for temporary files, thumbnails, asset depot, DCPs (Default: HOME/cinemaslidesdir)" : "\nCINEMASLIDESDIR is set (#{ ENV[ 'CINEMASLIDESDIR' ] })" } 
  
-Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
+Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [-n_threads <threads>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
 
 BANNER
 
-      opts.on( '-t', '--type type', String, "Use '#{ OUTPUT_TYPE_CHOICE_PREVIEW }' (half size) or '#{ OUTPUT_TYPE_CHOICE_FULLPREVIEW }' (full size) or '#{ OUTPUT_TYPE_CHOICE_DCP }' or '#{ OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM }' or '#{ OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM }' (Default: '#{ OUTPUT_TYPE_CHOICE_PREVIEW }')" ) do |p|
+      opts.on( '-t', '--type type', String, "Use one of #{ pretty_print_choices( options.output_type_choices ) }  (Default: '#{ OUTPUT_TYPE_CHOICE_PREVIEW }')" ) do |p|
         if options.output_type_choices.include?( p.downcase )
           options.output_type = p.downcase
 	  if options.output_type == OUTPUT_TYPE_CHOICE_DCP or options.output_type == OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM
@@ -125,7 +141,11 @@ BANNER
         end
       end
       
-      opts.on( '--input-type type',  String, "Use '#{ INPUT_TYPE_CHOICE_SLIDE }'  or '#{ INPUT_TYPE_CHOICE_AV }' (not yet implemented)" ) do |p|
+      opts.on( '--n_threads <threads>', Integer, 'Number of threads for creating image sequence and encoding. not yet for checking  (Default: 8)' ) do |p|
+        options.n_threads = p if (p > 0)
+      end
+      
+      opts.on( '--input-type type',  String, "Use one of #{ pretty_print_choices( options.input_type_choices ) } (Default: #{INPUT_TYPE_CHOICE_SLIDE}) ) (not yet implemented)" ) do |p|
         if options.input_type_choices.include?( p.downcase )
           options.input_type = p.downcase
         else
@@ -134,14 +154,14 @@ BANNER
       end
 
       
-      opts.on( '-k', '--size resolution', String, "Use '#{CONTAINER_SIZE_2K}' or '#{CONTAINER_SIZE_4K}' (Default: #{CONTAINER_SIZE_2K})" ) do |p|
+      opts.on( '-k', '--size resolution', String, "Use one of #{ pretty_print_choices(  options.size_choices ) } (Default: #{CONTAINER_SIZE_2K})" ) do |p|
         if options.size_choices.include?( p.downcase )
           options.size = p.downcase
         else
           options.size = 'catch:' + p.downcase
         end
       end
-      opts.on( '-a', '--aspect ratio', String, "For standard aspect ratios use '#{ASPECT_CHOICE_FLAT}', '#{ASPECT_CHOICE_SCOPE}' or '#{ASPECT_CHOICE_HD}' (Default: #{ASPECT_CHOICE_FLAT}). You can also experiment with custom aspect ratios by saying '<width>x<height>'. The numbers given will be scaled to fit into the target container (Default size or specified with '--size')." ) do |p|
+      opts.on( '-a', '--aspect ratio', String, "For standard aspect ratios use one of #{ pretty_print_choices( ASPECT_CHOICES ) } (Default: #{ASPECT_CHOICE_FLAT}). You can also experiment with custom aspect ratios by saying '<width>x<height>'. The numbers given will be scaled to fit into the target container (Default size or specified with '--size')." ) do |p|
         if options.aspect_choices.include?( p.downcase )
           options.aspect = p.downcase
         elsif p.match( options.aspect_choices.last )
@@ -156,14 +176,14 @@ BANNER
       opts.on( '--fps fps', 'Framerate (Default: 24)', Float ) do |p| # 23.976
         options.fps = p.to_f
       end
-      opts.on( '-x', '--transition-and-timing transition,seconds[,seconds[,seconds]]', Array, "Use this option to specify the transition type ('#{ TRANSITION_CHOICE_CUT }', '#{ TRANSITION_CHOICE_FADE }' or '#{ TRANSITION_CHOICE_CROSSFADE }') and timing parameters (Default: '-x cut,5'). Separate parameters with comma (no spaces)" ) do |p|
+      opts.on( '-x', '--transition-and-timing transition,seconds[,seconds[,seconds]]', Array, "Use this option to specify the transition type, one of #{ pretty_print_choices( options.transition_and_timing_choices ) }, and timing parameters (Default: '-x cut,5'). Separate parameters with comma (no spaces)" ) do |p|
         if options.transition_and_timing_choices.include?( p.first.downcase )
           options.transition_and_timing = p
         else
           options.transition_and_timing[ 0 ] = 'malformed'
         end
       end
-      opts.on( '-j', '--jpeg2000-codec codec', String, "Use '#{ ENCODER_CHOICE_OJ }' or '#{ ENCODER_CHOICE_KAKADU }' for JPEG 2000 encoding (Default: openjpeg)" ) do |p|
+      opts.on( '-j', '--jpeg2000-codec codec', String, "Use one of #{ pretty_print_choices( options.jpeg2000_codec_choices )  }  for JPEG 2000 encoding (Default: openjpeg)" ) do |p|
         options.jpeg2000_codec = p.downcase
       end
       opts.on( '-f', '--output-format suffix', String, "Use 'jpg' or any other image related suffix (Default: jpg for previews, tiff for DCPs)" ) do |p|
@@ -178,7 +198,7 @@ BANNER
       opts.on( '--bt', '--black-tail seconds', Float, 'Length of black tail (Default: 0)' ) do |p|
         options.black_tail = p
       end
-      opts.on( '-r', '--samplerate rate', String, "Audio samplerate. Use '#{SAMPLE_RATE_CHOICE_48000}', '#{SAMPLE_RATE_CHOICE_48K}', '#{SAMPLE_RATE_CHOICE_96000}' or '#{SAMPLE_RATE_CHOICE_96K}' (Default: #{SAMPLE_RATE_CHOICE_48000})" ) do |p|
+      opts.on( '-r', '--samplerate rate', String, "Audio samplerate. Use one of #{ pretty_print_choices( options.audio_samplerate_choices ) } (Default: #{SAMPLE_RATE_CHOICE_48000})" ) do |p|
         if options.audio_samplerate_choices.include?( p.downcase )
           case p.downcase
           when SAMPLE_RATE_CHOICE_48000, SAMPLE_RATE_CHOICE_48K
@@ -188,7 +208,7 @@ BANNER
           end
         end
       end
-      opts.on( '--bps bps', Integer, "Bits per audio sample. Use '16' or '24' (Default: 24)" ) do |p|
+      opts.on( '--bps bps', Integer, "Bits per audio sample. Use one of #{ pretty_print_choices( options.audio_bps_choices ) } (Default: #{ AUDIO_BPS_24 })" ) do |p|
         if options.audio_bps_choices.include?( p )
           options.audio_bps = p
         end
@@ -202,7 +222,7 @@ BANNER
       opts.on( '--annotation annotation', String, 'DCP/KDM annotation' ) do |p|
         options.annotation = p
       end
-      opts.on( '--kind kind', "DCP content kind. Use 'feature', 'trailer', 'test', 'teaser', 'rating', 'advertisement', 'short', 'transitional', 'psa' or 'policy' (Default: test)" ) do |p|
+      opts.on( '--kind kind', "DCP content kind. Use one of #{ pretty_print_choices( options.dcp_kind_choices ) }  (Default: #{DCP_KIND_TEST})" ) do |p|
         if options.dcp_kind_choices.include?( p.downcase )
           options.dcp_kind = p.downcase
         end
@@ -266,7 +286,7 @@ BANNER
       opts.on( '--target <certificate>', String, 'KDM mode: Path to the recipient device certificate' ) do |p|
         options.kdm_target = p
       end
-      opts.on( '-v', '--verbosity level', String, "Use '#{ Logger::VERBOSITY_CHOICE_QUIET }', '#{ Logger::VERBOSITY_CHOICE_INFO }' or '#{ Logger::VERBOSITY_CHOICE_DEBUG }' (Default: #{ Logger::VERBOSITY_CHOICE_INFO })" ) do |p|
+      opts.on( '-v', '--verbosity level', String, "Use one of #{ pretty_print_choices( options.verbosity_choices ) } (Default: #{ Logger::VERBOSITY_CHOICE_INFO })" ) do |p|
         if options.verbosity_choices.include?( p )
           options.verbosity = p
         else
@@ -391,7 +411,7 @@ EXAMPLES
     logger = Logger::Logger.instance
     m = @@options.output_type.match( /catch:(.*)/ )
     unless m.nil?
-      logger.info( "Specify output type: preview, fullpreview or dcp" )
+      logger.info( "Specify output type: #{ @@options.output_type_choices.join( ' or ') }" )
       return FALSE
     end
     TRUE
@@ -401,7 +421,7 @@ EXAMPLES
     logger = Logger::Logger.instance
     m = @@options.input_type.match( /catch:(.*)/ )
     unless m.nil?
-      logger.info( "Specify input type: slideshow or avcontainer" )
+      logger.info( "Specify input type: #{ @@options.input_type_choices.join( ' or ' ) }" )
       return FALSE
     end
     TRUE
@@ -487,6 +507,12 @@ EXAMPLES
     end
     return File.read(p)
   end
+  
+  def self.pretty_print_choices (choices)
+    (choices.collect {|x| "'" + x + "'" }).join(", ")
+  end
+
+
     
 end # class
 

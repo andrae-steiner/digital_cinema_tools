@@ -25,9 +25,6 @@ module ShellCommands
     def self.sox_silence_command( samplerate, bps, channelcount, silence_conform, seconds )
       `sox -r #{ samplerate } -b #{ bps } -c #{ channelcount } -s -n #{ silence_conform } synth #{ seconds } sine 0`
     end
-    def self.IM_convert_info_command( file )
-      `convert #{ file } -format '(%wx%h, 1:%[fx:w/h])' info:`
-    end
     def self.openssl_sha1_64( file )
       `openssl dgst -sha1 -binary #{ file } | openssl base64`
     end
@@ -64,6 +61,9 @@ module ShellCommands
     end
     def self.touch_command( file )
       `touch #{ file } > /dev/null 2>&1`
+    end
+    def self.IM_convert_info_command( file )
+      `convert #{ file } -format '(%wx%h, 1:%[fx:w/h])' info:`
     end
     def self.p_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions)
       `convert #{image} \
@@ -129,20 +129,6 @@ module ShellCommands
     def self.smpte_dcp_IM_black_frame( file, dimensions )
       `convert -type TrueColor -size #{ dimensions } xc:black -depth 12 #{ file }`
     end
-    def self.hostname_command
-      `hostname`
-    end
-    def self.asdcp_test_v_i_command( mxf )
-      `asdcp-test -v -i #{ mxf }`
-    end
-    def self.random_128_bit
-      `kmrandgen -n -s 16`
-    end
-    def self.asdcp_test_create_mxf( args )
-      asdcp_line = "asdcp-test #{ args } > /dev/null 2>&1"
-      Logger::Logger.instance.debug( asdcp_line )
-      `#{ asdcp_line }`
-    end
     def self.IM_convert_thumb(single_source, thumbs_dimensions, thumbasset)
       `convert #{ single_source } \
 	-type TrueColor \
@@ -164,6 +150,7 @@ module ShellCommands
       #{ thumbs_asset }`
     end
     def self.IM_composite_command( image1, level, image2, depth_parameter, compress_parameter, output)
+      @logger = Logger::Logger.instance
       `composite -type TrueColor #{ image1 } -dissolve #{ level } #{ image2 } #{ depth_parameter } #{ compress_parameter } #{ output }`
     end
     def self.IM_composite_rotate_command( image1, rotation, level, image2, depth_parameter, compress_parameter, output)
@@ -182,6 +169,20 @@ module ShellCommands
     end
     def self.image_to_j2k_command( file, asset, profile )
       `image_to_j2k -#{ profile } -i #{ file } -o #{ asset }`
+    end
+    def self.hostname_command
+      `hostname`
+    end
+    def self.asdcp_test_v_i_command( mxf )
+      `asdcp-test -v -i #{ mxf }`
+    end
+    def self.random_128_bit
+      `kmrandgen -n -s 16`
+    end
+    def self.asdcp_test_create_mxf( args )
+      asdcp_line = "asdcp-test #{ args } > /dev/null 2>&1"
+      Logger::Logger.instance.debug( asdcp_line )
+      `#{ asdcp_line }`
     end
     def self.sha1sum_command( file )
       `sha1sum #{ file }`.chomp.split(" ")[0]

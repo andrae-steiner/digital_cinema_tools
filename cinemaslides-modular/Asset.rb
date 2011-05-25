@@ -34,11 +34,9 @@ module Asset
       return assetname, todo
     end  
     def digest_over_content( file )
-      @logger.debug(" digest_over_content file = #{file}.")
       Digest::MD5.hexdigest( File.read( file ) )
     end
     def digest_over_file_basename( file )
-      @logger.debug(" digest_over_file_basename file = #{file}.")
       Digest::MD5.hexdigest( File.basename( file ) )
     end
     def digest_over_string( s )

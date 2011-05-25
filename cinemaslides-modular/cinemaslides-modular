@@ -188,7 +188,6 @@ def kdm_mandatory
   [ 'xmlsec1', 'openssl', 'kmuuidgen' ]
 end
 
-
 module DCTools
   def transform_cert_name( name )
     # OpenSSL::X509::Name.to_a -> to get an array of RDNs:
