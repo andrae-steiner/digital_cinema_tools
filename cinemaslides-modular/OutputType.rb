@@ -14,6 +14,10 @@ module OutputType
   require 'DCP'
         
   TESTING = FALSE
+  ASPECT_FLAT      = OptParser::ASPECT_CHOICE_FLAT # 1.85 : 1
+  ASPECT_SCOPE     = OptParser::ASPECT_CHOICE_SCOPE # 2.39 : 1
+  ASPECT_HD        = OptParser::ASPECT_CHOICE_HD # 1.77 : 1
+  ASPECT_CONTAINER = 'container'
 
   
   ShellCommands = ShellCommands::ShellCommands
@@ -122,23 +126,24 @@ module OutputType
   end # KDMOutputType
   
   class AudioVideoOutputType < OutputType
-    attr_reader :dimensions, :workdir, :conformdir, :dcp_image_sequence_name, :thumbsdir, :assetsdir, :assetsdir_audio, :keysdir, :compress_parameter, :depth_parameter, :thumbs_dimensions, :jpeg2000_codec, :size, :dcp_wrap_stereoscopic
+    attr_reader :dimensions, :workdir, :conformdir, :dcp_image_sequence_name, :fps, :thumbsdir, :assetsdir, :assetsdir_audio, :keysdir, :compress_parameter, :depth_parameter, :thumbs_dimensions, :jpeg2000_codec, :size, :dcp_wrap_stereoscopic
     def initialize(mandatory, dcp_functions)
       super(mandatory, dcp_functions)
       @dimensions = width_x_height
       @thumbs_dimensions = calc_thumbsdimensions(THUMB_DIMENSIONS_FACTOR)
       @jpeg2000_codec = @options.jpeg2000_codec
       @size = @options.size
+      @fps = @options.fps
       @dcp_wrap_stereoscopic = @options.dcp_wrap_stereoscopic
     end
 
-    # TODO we should probably feed already "create_output_type" with a list of SMPTE::DCPAsset elements.
+    # TODO we should probably feed already "create_output_type" with a list of DCP::DCPAsset elements.
     #
     # But in this case MXF generation has to be delayed until DCP::DCP.add_cpl
     def create_output_type( source, source_audio, signature_context)
       create_output_type2( source, source_audio, signature_context)
       final_report(Final_report_context.new(
-	@image_sequence.n_sequence_frames, @options.fps, @options.transition_and_timing, @options.keep, @image_sequence.framecount,  source, @workdir ))
+	@image_sequence.n_sequence_frames, @fps, @options.transition_and_timing, @options.keep, @image_sequence.framecount,  source, @workdir ))
       cleanup_workdir( @options.keep )
       done_message
     end
@@ -157,7 +162,7 @@ module OutputType
 	output_type_obj = self,
 	output_format   = @options.output_format, 
 	resize          = @options.resize,
-	fps             = @options.fps,
+	fps             = @fps,
 	black_leader    = @options.black_leader,
 	black_tail      = @options.black_tail,
 	fade_in_time    = @options.fade_in_time,
@@ -168,7 +173,7 @@ module OutputType
 	source           = source_audio,
 	image_sequence   = @image_sequence,
 	output_type_obj  = self, 
-	fps              = @options.fps,
+	fps              = @fps,
 	audio_samplerate = @options.audio_samplerate,
 	audio_bps        = @options.audio_bps, 
 	black_leader     = @options.black_leader, 
@@ -209,10 +214,10 @@ module OutputType
     
     def setup_output_directories(source_empty, source_audio_empty)
       @workdir = File.join( @cinemaslidesdir, "#{ File.basename( $0 ) }_#{ get_timestamp }_#{ @options.output_type }" )
-      @conformdir = File.join( @workdir, "conform" )
+      @conformdir = File.join( @workdir, 'conform' )
       @dcp_image_sequence_name = File.join( @workdir, @dcp_functions.dcp_image_sequence_basename )
-      @thumbsdir = File.join( @cinemaslidesdir, "thumbs" )
-      @assetsdir = File.join( @cinemaslidesdir, "assets" )
+      @thumbsdir = File.join( @cinemaslidesdir, 'thumbs' )
+      @assetsdir = File.join( @cinemaslidesdir, 'assets' )
       @assetsdir_audio = File.join( @cinemaslidesdir, 'assets-audio' )
       @keysdir = File.join( @cinemaslidesdir, 'keys' )
 
@@ -262,9 +267,10 @@ module OutputType
 	end
       end
     end
-
+    
     # fit custom aspect ratios into the target container dimensions (1k for preview, 2k/4k for fullpreview/dcp)
-    def scale_to_fit_container( width, height, container_width, container_height )
+    def scale_to_fit_container( aspect, container_width, container_height )
+      width, height = aspect.split( Optparser::ASPECT_CHOICE_CUSTOM_PREFIX ).last.split( 'x' ).collect{|x| x.to_f}
       factor = container_height / container_width > height / width ? container_width / width : container_height / height
       @logger.debug( "Scaling factor to fit custom aspect ratio #{ width } x #{ height } in #{ @options.size } container: #{ factor }" )
       width_scaled = width * factor
@@ -277,23 +283,15 @@ module OutputType
     # any custom aspect ratio is scaled to fit the target container
     def width_x_height
       container_multiplier = @options.size.split( '' ).first.to_i
-      container_width = 1024.0 * container_multiplier
-      container_height = 540.0 * container_multiplier
+      dcp_dimensions = @dcp_functions.dimensions
+      container_width, container_height = dcp_dimensions[ ASPECT_CONTAINER ].collect{|x| x * container_multiplier}
       @logger.debug( "Container: #{ container_width } x #{ container_height } (1k multiplier: #{ container_multiplier })" )
-      case @options.aspect
-      when OptParser::ASPECT_CHOICE_FLAT # 1.85 : 1
-	width, height = 999, 540 # 1.85
-      when OptParser::ASPECT_CHOICE_SCOPE # 2.39 : 1
-	width, height = 1024, 429 # 2.38694638694639
-      when OptParser::ASPECT_CHOICE_HD # 1.77 : 1
-	width, height = 960, 540 # 1.77777777777778
+      
+      if dcp_dimensions.has_key?( @options.aspect ) 
+	width, height = dcp_dimensions[ @options.aspect ].collect{|x| x * container_multiplier}
       else # Custom aspect ratio
-	custom_width, custom_height = @options.aspect.split( 'Custom aspect ratio:' ).last.split( 'x' )
-	width, height = scale_to_fit_container( custom_width.to_f, custom_height.to_f, container_width, container_height )
-	return [ width, height ].join( 'x' )
+	width, height = scale_to_fit_container( @options.aspect, container_width, container_height )
       end
-      width *= container_multiplier
-      height *= container_multiplier
       return [ width, height ].join( 'x' )
     end
     
@@ -342,7 +340,7 @@ module OutputType
       else
 	@logger.warn( "Loop #{ @options.output_type }. Exit with ESC or 'q'" )
 	mplayer_vo = ""
-	ShellCommands.mplayer_preview_command(  sequence, audio, @options.fps, @options.output_format, mplayer_vo, @options.mplayer_gamma)
+	ShellCommands.mplayer_preview_command(  sequence, audio, @fps, @options.output_format, mplayer_vo, @options.mplayer_gamma)
       end
     end
     
@@ -359,10 +357,10 @@ module OutputType
     end
     
     def display_summary (summary_context)
-      @logger.info( "Creating #{ @options.output_type } (#{ @options.aspect } #{ @dimensions } @ #{ @options.fps } fps)" )
+      @logger.info( "Creating #{ @options.output_type } (#{ @options.aspect } #{ @dimensions } @ #{ @fps } fps)" )
       @logger.info( "Number of images: #{ summary_context.source.size }" )
       @logger.info( "Transition specs: #{ @options.transition_and_timing.join( ',' ) }" )
-      @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.n_sequence_frames / @options.fps ) }" )
+      @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.n_sequence_frames / @fps ) }" )
     end
                 
   end # PreviewOutputType
@@ -376,15 +374,15 @@ module OutputType
     end
         
     def convert_resize_extent_color_specs( image, filename )
-      ShellCommands.smpte_dcp_IM_convert_resize_extent_color_specs( image, filename, @options.resize, @dimensions)
+      @dcp_functions.convert_resize_extent_color_specs( image, filename, @options.resize, @dimensions)
     end
     
     def convert_apply_level( image, level, filename )
-      ShellCommands.smpte_dcp_IM_convert_apply_level( image, level, filename)
+      @dcp_functions.convert_apply_level( image, level, filename )
     end  
     
     def create_blackframe (file)
-       ShellCommands.smpte_dcp_IM_black_frame( file, @dimensions )
+      @dcp_functions.create_blackframe(file, @dimensions)
     end
     
     def all_mandatory_tools_available?
@@ -420,11 +418,13 @@ module OutputType
     end
         
     def asset_suffix(suffix)
-      fps_suffix = @options.dcp_wrap_stereoscopic ? '48' : @options.fps.floor.to_s 
-      dcp_output_type_suffix = suffix == 'j2c' ? '_' + encoder_ids[@options.jpeg2000_codec] + '_' + fps_suffix : ''
-      dcp_output_type_suffix + "_." + suffix
-      
-      
+      @dcp_functions.asset_suffix(suffix, @options)
+      # was before: 
+      # fps_suffix = @options.dcp_wrap_stereoscopic ? '48' : @options.fps.floor.to_s 
+      # dcp_output_type_suffix = suffix == 'j2c' ? '_' + encoder_ids[@options.jpeg2000_codec] + '_' + fps_suffix : ''
+      # dcp_output_type_suffix + "_." + suffix
+
+#from original cinamaslides      
 #        assetname = File.join( @assetsdir, id + "_#{ @dimensions }_#{ @resize == TRUE ? 'r' : 'nr' }#{ level.nil? ? '' : '_' + level.to_s }#{ @output_type == 'dcp' ? suffix == 'j2c' ? '_' + @encoder_id + '_' + ( @dcp_wrap_stereoscopic == TRUE ? '48' : fps.floor.to_s ) : '' : '_pre' }_.#{ suffix }" )
 
       
@@ -446,7 +446,8 @@ module OutputType
 	keysdir = @keysdir,
 	steroscopic = @options.dcp_wrap_stereoscopic, 
 	dcp_encrypt = @options.dcp_encrypt, 
-	fps = @options.fps)
+	fps = @fps,
+	dcp_functions = @dcp_functions)
       t1 = Thread.new do
 	@logger.info( 'Write image trackfile ...' )  
 	image_mxf_track.write_asdcp_track( file =  @dcp_image_sequence_name)
@@ -458,7 +459,8 @@ module OutputType
 	  dcpdir = @options.dcpdir, 
 	  keysdir = @keysdir,
 	  dcp_encrypt = @options.dcp_encrypt, 
-	  fps = @options.fps)
+	  fps = @fps,
+	  dcp_functions = @dcp_functions)
         t2 = Thread.new do
 	  @logger.info( 'Write audio trackfile ...' )
 	  # FIXME 2.0 sound only here (v0.2010.11.19), hence no label. might be trouble on some servers
@@ -473,7 +475,7 @@ module OutputType
       smpte_dcp = DCP::DCP.new(
 	  dcpdir            = @options.dcpdir,
 	  issuer            = @options.issuer,
-	  creator           = "#{ AppName } #{ AppVersion } smpte",
+	  creator           = "#{ AppName } #{ AppVersion } #{ @dcp_functions.dcp_kind }",
 	  annotation        = @options.annotation,
 	  sign              = @options.sign,
 	  signature_context = signature_context,
@@ -484,8 +486,8 @@ module OutputType
       font_filename = "/home/home-10.1/Documents/Programmkino/DCP-TEST/Untertitel/arial.ttf"
 #for testing
       
-      dcp_audio_asset = source_audio.empty? ? nil : DCP::DCPMXFAudioAsset.new( audio_mxf_track.mxf_file_name )
-      dcp_image_asset = DCP::DCPMXFImageAsset.new( image_mxf_track.mxf_file_name )
+      dcp_audio_asset = source_audio.empty? ? nil : DCP::DCPMXFAudioAsset.new( audio_mxf_track.mxf_file_name, @dcp_functions )
+      dcp_image_asset = DCP::DCPMXFImageAsset.new( image_mxf_track.mxf_file_name, @dcp_functions, @dimensions )
             
 # for testing      
       line1 = DCP::DCSubtitleLine.new("bottom", "center", 0, 7, "Ja, unser mündlicher Vertrag war anders,")
@@ -506,11 +508,12 @@ module OutputType
 	font_color        = "FFFFFFFF", 
 	font_effect       = "shadow", 
 	font_effect_color = "FF000000", 
-	subtitle_list     = [st1, st2] )
+	subtitle_list     = [st1, st2],
+	dcp_functions     = @dcp_functions)
       st_filename = DCP::DCP::st_file( @options.dcpdir, st_uuid )
       File.open( st_filename, 'w' ) { |f| f.write( dc_subtitle.xml ) } if TESTING
        
-      dcp_subtitle_asset = DCP::DCPSubtitleAsset.new( st_filename, edit_rate = "24 1", intrinsic_duration=168, entry_point=0, duration=168) if TESTING
+      dcp_subtitle_asset = DCP::DCPSubtitleAsset.new( st_filename, @dcp_functions, edit_rate = "24 1", intrinsic_duration=168, entry_point=0, duration=168) if TESTING
 #for testing
       
       smpte_dcp.add_cpl(
@@ -535,10 +538,10 @@ module OutputType
     end
     
     def display_summary (summary_context)
-      @logger.info( "Creating#{ @options.sign ? ' signed' : '' }#{ @options.dcp_encrypt ? ' and encrypted' : '' }#{ @options.dcp_wrap_stereoscopic ? ' 3D' : ' 2D' } #{ @options.size.upcase } DCP (#{ @options.aspect } #{ @dimensions } @ #{ @options.fps } fps). Encoder: #{ @options.jpeg2000_codec }" )
+      @logger.info( "Creating#{ @options.sign ? ' signed' : '' }#{ @options.dcp_encrypt ? ' and encrypted' : '' }#{ @options.dcp_wrap_stereoscopic ? ' 3D' : ' 2D' } #{ @options.size.upcase } DCP (#{ @options.aspect } #{ @dimensions } @ #{ @fps } fps). Encoder: #{ @options.jpeg2000_codec }" )
       @logger.info( "Number of images: #{ summary_context.source.size }" )
       @logger.info( "Transition specs: #{ @options.transition_and_timing.join( ',' ) }" )
-      @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.n_sequence_frames / @options.fps ) }" )
+      @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.n_sequence_frames / @fps ) }" )
       @logger.info( "Title:            #{ @options.dcp_title }" )
       @logger.info( "Annotation:       #{ @options.annotation }" )
       @logger.info( "Issuer:           #{ @options.issuer }" )

@@ -72,7 +72,7 @@ module ShellCommands
 	-gamma 0.454545454545455 \
 	#{ resize ? '-resize ' + dimensions : '' } \
 	-background black \
-	-gravity center \
+	-gravity center #{ (filename.end_with?('.jpg')) ? ' -quality 92' : '' }\
 	-extent #{ dimensions } \
 	-gamma 2.2 \
 	-depth 8  \
@@ -90,7 +90,7 @@ module ShellCommands
 	  -type TrueColor \
 	  -gamma 0.454545454545455 \
 	  -fill black -colorize #{ level.abs } \
-	  -gamma 2.2 \
+	  -gamma 2.2  #{ (filename.end_with?('.jpg')) ? ' -quality 92' : '' }\
 	  #{ filename }`
     end
     def self.p_IM_black_frame( file, dimensions )
@@ -151,7 +151,7 @@ module ShellCommands
     end
     def self.IM_composite_command( image1, level, image2, depth_parameter, compress_parameter, output)
       @logger = Logger::Logger.instance
-      `composite -type TrueColor #{ image1 } -dissolve #{ level } #{ image2 } #{ depth_parameter } #{ compress_parameter } #{ output }`
+      `composite -type TrueColor #{ (image1.end_with?('.jpg')) ? ' -quality 92' : '' } #{ image1 } -dissolve #{ level } #{ (image2.end_with?('.jpg')) ? ' -quality 92' : '' }  #{ image2 } #{ depth_parameter } #{ compress_parameter } #{ (output.end_with?('.jpg')) ? ' -quality 92' : '' } #{ output }`
     end
     def self.IM_composite_rotate_command( image1, rotation, level, image2, depth_parameter, compress_parameter, output)
       `convert #{image1} -background black -geometry 1920x1080!  -rotate #{ rotation } miff:- | composite -type TrueColor miff:- -dissolve #{ level } #{ image2 } #{ depth_parameter } #{ compress_parameter } #{ output }`

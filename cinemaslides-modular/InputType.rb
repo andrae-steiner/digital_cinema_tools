@@ -3,6 +3,7 @@ module InputType
   require 'Logger'
   require 'ShellCommands'
   require 'AudioSequence'
+  require 'ImageSequence'
   ShellCommands = ShellCommands::ShellCommands
   
   AUDIOSUFFIX_REGEXP = Regexp.new(/(mp3|MP3|wav|WAV|flac|FLAC|aiff|AIFF|aif|AIF|ogg|OGG)$/)
@@ -53,7 +54,8 @@ module InputType
       @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_" +AudioSequence::FILE_SUFFIX_PCM)
 #      @audio_from_av = "/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"
       # TODO create a method in ShellCommands for this
-      `ffmpeg -y -i "#{ @avfile }" -an -r 24   -b 20000k #{File.join(@image_output_dir, "%06d.jpg")}`
+      # FIXME do not hard code fps
+      `ffmpeg -y -i "#{ @avfile }" -an -r 24   -qscale 1 -qmin 1 -intra -b 50000k #{File.join(@image_output_dir, ImageSequence::FILE_SEQUENCE_FORMAT+".png")}`
       `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 24 -ar 48000 #{ @audio_from_av }`
       
 #      return Dir.glob( "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00/*" ).sort,  ["/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"], nil, TRUE

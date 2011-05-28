@@ -9,7 +9,7 @@ module ImageSequence
   ShellCommands = ShellCommands::ShellCommands
   
   THUMBFILE_SUFFIX = ".jpg"
-  
+  FILE_SEQUENCE_FORMAT = "%06d"
 
   class FileSequence
     attr_reader :framecount
@@ -23,7 +23,7 @@ module ImageSequence
     end
 
     def next_file
-      file = File.join( @dir, "#{ '%06d' % @framecount }.#{ @output_format }" )
+      file = File.join( @dir, "#{ FILE_SEQUENCE_FORMAT % @framecount }.#{ @output_format }" )
       @framecount += 1
       file
     end
@@ -32,7 +32,6 @@ module ImageSequence
     ( 1..( seconds * @fps - 1 ) ).each do # 1 file already written
       link = next_file
       # FIXME link available on all platforms?
-#      @logger.debug("4 symlink p1 = #{ file }, p2 = #{ link }")
       File.symlink( File.expand_path(file),  link )
     end
     
@@ -47,6 +46,7 @@ module ImageSequence
                     fps, black_leader, black_tail, fade_in_time, duration, fade_out_time, 
                     crossfade_time)
       @imagecount = 0
+      @conform_mutexes = Hash.new
       @imagecount_mutex = Mutex.new
       @conform_mutex = Mutex.new
       @source = source
@@ -116,11 +116,7 @@ module ImageSequence
     end
     
     private 
-    
-    def lock_filename(f)
-      f + "_lock"
-    end
-    
+        
     def incr_imagecount
       @imagecount_mutex.synchronize do
 	@imagecount += 1
@@ -137,7 +133,7 @@ module ImageSequence
       # Create black leader
       if @black_leader > 0
         @logger.info( "Black leader: #{ @black_leader } seconds" )
-	make_black_sequence( @black_leader, file_sequence )
+	black_sequence( @black_leader, file_sequence )
       end
     end
     
@@ -150,7 +146,7 @@ module ImageSequence
       # Create black tail
       if @black_tail > 0
         @logger.info( "Black tail: #{ @black_tail } seconds" )
-	make_black_sequence(@black_tail, file_sequence )
+	black_sequence(@black_tail, file_sequence )
       end
     end
 
@@ -214,17 +210,15 @@ module ImageSequence
 	filename = file_sequence.next_file
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
-	asset, todo = @asset_functions.check_for_asset( image, @output_format, level )
-	if todo
-	  @output_type_obj.convert_apply_level( image, level, asset )
-	end
-#	@logger.debug("1  symlink p1 = #{ asset }, p2 = #{ filename }")
+	
+	asset = create_asset( image, level ) {|a| @output_type_obj.convert_apply_level( image, level, a )}
+	
 	File.symlink( File.expand_path(asset),  filename )
       end
     end
 
     def crossfade( image1, image2, seconds, file_sequence )
-      @logger.info( "XXX Crossfade #{ imagecount_info( image1 ) }" )
+      @logger.info( "XXX Crossfade #{ imagecount_info( image1 ) }" )      
       initial = 100.0
       final = 0.0
       step = - ( 100 / ( seconds * @fps ) )
@@ -234,16 +228,33 @@ module ImageSequence
 	filename = file_sequence.next_file
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
-	asset, todo = @asset_functions.check_for_asset( [ image1, image2 ], @output_format, level )
-	if todo
-	  composite( image1, level, image2, asset )
-	end
-#	@logger.debug("2 symlink p1 = #{ asset }, p2 = #{ filename }")
+	
+	asset = create_asset( [image1, image2], level ) {|a| composite( image1, level, image2, a )}
+	
 	File.symlink( File.expand_path(asset),  filename )
       end
     end
+    
+    def create_asset( image,  level = nil , &block)
+      asset = ""; todo = TRUE
+      @conform_mutex.synchronize do
+	asset, todo = @asset_functions.check_for_asset( image, @output_format, level )
+	@conform_mutexes[asset] = Mutex.new unless @conform_mutexes.has_key?(asset)
+      end
+      @conform_mutexes[asset].synchronize do
+	if todo
+	  yield asset
+	end
+      end
+      return asset
+    end
+    
+    def create_black_asset( &block )
+      return create_asset( Asset::FILENAME_BLACK_FRAME,  level = nil, &block )
+    end
 
     def full_level( image, duration, file_sequence )
+      return if (duration < 1)
       @logger.info( "--- Full level #{ imagecount_info( image ) }" )
       level = 0
       file = file_sequence.next_file
@@ -261,41 +272,13 @@ module ImageSequence
     # all fade/crossfade ops are based on these assets
     def conform( image )
       @logger.info( "Conform image: #{ image }" )
-      asset, todo = @asset_functions.check_for_asset( image, @output_format )
-      @logger.info( "Conform image: #{ image }, asset = #{ asset }, TODO = #{ todo}" )
-      if todo
-	File.open(lock_filename( asset ) , 'w') do |f2| 
-	end
-	@output_type_obj.convert_resize_extent_color_specs( image, asset  )
-	begin
-	  File.delete( lock_filename( asset ) )
-	rescue
-	end
-      end
-      first = true
-      while (File.exists?( lock_filename( asset ) ) ) do
-	if (first)
-	      @logger.info( "Conform image: #{ image }, asset = #{ asset }, TODO = #{ todo} wait for unlock" )
-	      first = false
-	end
-      end
-      return asset
+      return create_asset( image ) {|a| @output_type_obj.convert_resize_extent_color_specs( image, a  )}
     end
 
-    def make_black_frame( filename )
-      asset, todo = @asset_functions.check_for_black_asset( @output_format )
-      @output_type_obj.create_blackframe(asset) if todo
-#      @logger.debug("0 symlink p1 = #{ asset }, p2 = #{ filename }")
-      File.symlink(  File.expand_path(asset), filename )
-    end
-
-    def make_black_sequence( duration , file_sequence)
-      if (duration < 1) 
-	return
-      end
-      blackfile = file_sequence.next_file
-      make_black_frame( blackfile )
-      file_sequence.sequence_links_to( blackfile, duration )
+    def black_sequence( duration , file_sequence)
+      full_level( image = create_black_asset() {|a| @output_type_obj.create_blackframe(a)}, 
+                  duration, 
+                  file_sequence )
     end
     
     def s_sign( value )
@@ -364,9 +347,7 @@ module ImageSequence
 	  end
 	end  #       Thread.new do
       end # indices.length.times do |i|
-      threads.each do |t|
-          t.join()
-      end                            
+      threads.each {|t| t.join()}                            
     end
     
     def create_transitions_single_thread
@@ -422,9 +403,7 @@ module ImageSequence
 	  end
 	end  #       Thread.new do
       end # indices.length.times do |thread_i|
-      threads.each do |t|
-          t.join()
-      end                            
+      threads.each {|t| t.join()}                            
     end
 
     
@@ -477,10 +456,9 @@ module ImageSequence
 	filename = file_sequence.next_file
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
-	asset, todo = @asset_functions.check_for_asset( [ image1, image2 ], @output_format, level )
-	if todo
-	  composite( image1, i*15, level, image2, asset )
-	end
+	
+	asset = create_asset( [image1, image2], level) {|a| composite( image1, i*15, level, image2, a )}
+
 #	@logger.debug("2 symlink p1 = #{ asset }, p2 = #{ filename }")
 	File.symlink( File.expand_path(asset),  filename )
       end

@@ -23,6 +23,7 @@ module OptParser
   ASPECT_CHOICE_FLAT = 'flat'
   ASPECT_CHOICE_SCOPE = 'scope'
   ASPECT_CHOICE_HD = 'hd'
+  ASPECT_CHOICE_CUSTOM_PREFIX = 'Custom aspect ratio:'
   ASPECT_CHOICES = [ASPECT_CHOICE_FLAT, ASPECT_CHOICE_SCOPE, ASPECT_CHOICE_HD]
   SAMPLE_RATE_CHOICE_48000 = '48000'
   SAMPLE_RATE_CHOICE_48K   = '48k'
@@ -121,7 +122,7 @@ class Optparser
       opts.banner = <<BANNER
 #{ AppName } #{ AppVersion } #{ ENV[ 'CINEMASLIDESDIR' ].nil? ? "\nExport CINEMASLIDESDIR to point to desired work directory needed for temporary files, thumbnails, asset depot, DCPs (Default: HOME/cinemaslidesdir)" : "\nCINEMASLIDESDIR is set (#{ ENV[ 'CINEMASLIDESDIR' ] })" } 
  
-Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [-n_threads <threads>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
+Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [--n_threads <threads>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
 
 BANNER
 
@@ -145,7 +146,7 @@ BANNER
         options.n_threads = p if (p > 0)
       end
       
-      opts.on( '--input-type type',  String, "Use one of #{ pretty_print_choices( options.input_type_choices ) } (Default: #{INPUT_TYPE_CHOICE_SLIDE}) ) (not yet implemented)" ) do |p|
+      opts.on( '--input-type type',  String, "Use one of #{ pretty_print_choices( options.input_type_choices ) } (Default: #{INPUT_TYPE_CHOICE_SLIDE}) ) (not yet fully implemented)" ) do |p|
         if options.input_type_choices.include?( p.downcase )
           options.input_type = p.downcase
         else
@@ -165,7 +166,7 @@ BANNER
         if options.aspect_choices.include?( p.downcase )
           options.aspect = p.downcase
         elsif p.match( options.aspect_choices.last )
-          options.aspect = 'Custom aspect ratio:' + p
+          options.aspect = ASPECT_CHOICE_CUSTOM_PREFIX + p
         else
           options.aspect_malformed = TRUE
         end
@@ -183,7 +184,7 @@ BANNER
           options.transition_and_timing[ 0 ] = 'malformed'
         end
       end
-      opts.on( '-j', '--jpeg2000-codec codec', String, "Use one of #{ pretty_print_choices( options.jpeg2000_codec_choices )  }  for JPEG 2000 encoding (Default: openjpeg)" ) do |p|
+      opts.on( '-j', '--jpeg2000-codec codec', String, "Use one of #{ pretty_print_choices( options.jpeg2000_codec_choices )  }  for JPEG 2000 encoding (Default: #{ENCODER_CHOICE_OJ})" ) do |p|
         options.jpeg2000_codec = p.downcase
       end
       opts.on( '-f', '--output-format suffix', String, "Use 'jpg' or any other image related suffix (Default: jpg for previews, tiff for DCPs)" ) do |p|

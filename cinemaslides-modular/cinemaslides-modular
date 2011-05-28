@@ -81,6 +81,7 @@ require 'InputType'
 require 'ShellCommands'
 require 'DCP'
 require 'DCPFunctions'
+require 'KDM_SMPTE_430_1_2006'
 
 include TimeDateUtils
 
@@ -113,10 +114,10 @@ class File
 end
 
 def key_types
-  { DCP::MAIN_PICTURE_ASSET_TYPE => 'MDIK', 
-    DCP::MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE => 'MDIK', 
-    DCP::MAIN_SOUND_ASSET_TYPE => 'MDAK', 
-    DCP::MAIN_SUBTITLE_ASSET_TYPE => 'MDSK' }
+  { DCP::MAIN_PICTURE_ASSET_TYPE => KDM_SMPTE_430_1_2006::KEYTYPE_MDIK, 
+    DCP::MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE => KDM_SMPTE_430_1_2006::KEYTYPE_MDIK, 
+    DCP::MAIN_SOUND_ASSET_TYPE => KDM_SMPTE_430_1_2006::KEYTYPE_MDAK, 
+    DCP::MAIN_SUBTITLE_ASSET_TYPE => KDM_SMPTE_430_1_2006::KEYTYPE_MDSK }
 end
 
 def encoder_ids
@@ -285,7 +286,7 @@ signature_context =  X509Certificate::X509CertificateChain.new(
 			      @options.signer_key)
 
 ### KDM mode
-# lässt sich nicht ganz leicht in output_type integrieren
+# can't be easily integrated into  output_type i
 if @options.kdm
   @output_type_obj = OutputType::KDMOutputType.new(mandatories[OptParser::OUTPUT_TYPE_CHOICE_KDM])
   kdm_creator = KDM_Gen::KDMCreator.new(
@@ -306,7 +307,7 @@ end ### KDM mode
 exit if !OptParser::Optparser.output_type_option_ok?
 exit if !OptParser::Optparser.input_type_option_ok?
 
-# hier wird die richtige Klasse z.B. preview oder dcp geladen
+# here the appropriate class e.g. preview or dcp is loaded
 @output_type_obj = OutputType.const_get(output_type_classnames[@options.output_type]).new( 
   mandatory = mandatories[@options.output_type], 
   dcp_functions = DCPFunctions.const_get(dcp_functions_classnames[@options.dcp_norm]).new )
@@ -331,7 +332,7 @@ OptParser::Optparser.set_output_format_option
 exit if !files_ok
 
 
-# hier wird dann je nach Klasse ein preview oder ein dcp erzuegt.
+# here a preview or dcp is created depending on the class loaded
 @output_type_obj.create_output_type( 
   source        = @source, 
   source_audio  = @source_audio, 
@@ -350,7 +351,7 @@ FIXME source filenames with spaces:
 
 FIXME certificate handling and KDM mode, although working, need re-design to allow for more flexibility
 FIXME output some basic help message when app is called without any args. as it is app merely utters 'No image files specified'
-FIXME calculates message digest twice when building an encrypted package (for CPL and PKL)
+done FIXME calculates message digest twice when building an encrypted package (for CPL and PKL)
 FIXME fps and --wrap-stereoscopic not in total harmony yet
 FIXME generic readme/report output
 FIXME check write completion on slow media (with -o | --dcp-out)
@@ -360,10 +361,11 @@ FIXME projected length <- frames cast
 FIXME estimate required/check available disk space
 FIXME See $ cinemaslides 01.jpg 02.jpg -x crossfade,1,0 (temporary @framecount fix in full_level())
 FIXME verbosity level "info" -> jpeg 2000 encoder talk
-FIXME crossfades border case: 0.0416666666666667 (1/24) crossfade time -> level shoots off the roof
+?? FIXME crossfades border case: 0.0416666666666667 (1/24) crossfade time -> level shoots off the roof
+         LEVELS = 99.8073265336673, 0.19267346633275 isn#t this ok?
 FIXME gamma diff on resize: don't conform images with target dimensions
 FIXME how to detect optimal -vo for mplayer?
-FIXME crossfade,5,0 [5 images] -> 720 frames intended 725 frames created
+done FIXME crossfade,5,0 [5 images] -> 720 frames intended 725 frames created
 FIXME cinemaslides multipage.pdf is somewhat borked because of assets creation (name), conforms to <digest>_<dimensions>_-<page_number>.jpg
       which won't fly at pickup time
 
@@ -376,7 +378,7 @@ FEATURE custom preview sizes
 FEATURE black/mono pause between slides
 FEATURE transition times and duration are global. make them file specific
 FEATURE DCP naming conventions
-FEATURE MPEG MXFI
+done FEATURE MPEG MXFI
 
 CODE slideshow objects
 CODE options catch all (missing arguments trace back deep)

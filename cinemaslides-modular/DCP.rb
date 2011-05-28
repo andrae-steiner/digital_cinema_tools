@@ -71,10 +71,10 @@ module DCP
   
   class DCPSubtitleAsset < DCPPKLAsset
     attr_reader :edit_rate, :entry_point, :duration, :intrinsic_duration
-    def initialize( asset, edit_rate = 0, intrinsic_duration = 0, entry_point = 0, duration = 0)
+    def initialize( asset, dcp_functions, edit_rate = 0, intrinsic_duration = 0, entry_point = 0, duration = 0)
       super( asset )
       @id = get_subtitle_id(asset) #
-      @mimetype = MIMETYPE_XML
+      @mimetype = dcp_functions.subtitle_mimetype
       @size = File.size(asset)
       @edit_rate = edit_rate
       @intrinsic_duration = intrinsic_duration
@@ -100,11 +100,10 @@ module DCP
   class DCPMXFAsset < DCPPKLAsset
     attr_reader :intrinsic_duration, :key_id, :encrypted, :stereoscopic
     attr_accessor :entry_point, :duration
-    def initialize (asset)
+    def initialize( asset )
       super(asset)
       @asset_meta = MXF::MXF_Metadata.new( asset ).hash
       @id =  @asset_meta[ MXF::MXF_KEYS_ASSETUUID ]
-      @mimetype = MIMETYPE_MXF
       @size = File.size(asset)
       @intrinsic_duration = @asset_meta[ MXF::MXF_KEYS_CONTAINER_DURATION ]
       @entry_point = 0
@@ -122,19 +121,23 @@ module DCP
   
   class DCPMXFAudioAsset < DCPMXFAsset
     attr_reader :edit_rate
-    def initialize (asset)
+    def initialize( asset, dcp_functions )
       super(asset)
       @edit_rate =  @asset_meta[ MXF::MXF_KEYS_EDIT_RATE ].to_s.gsub( '/', ' ' )
+      @mimetype = dcp_functions.audio_mimetype
     end # def 
   end # class
   
   class DCPMXFImageAsset < DCPMXFAsset
     attr_reader :edit_rate, :frame_rate, :screen_aspect_ratio
-    def initialize (asset)
-      super(asset)
+    def initialize( asset, dcp_functions, dimensions )
+      super( asset )
       @edit_rate =  @asset_meta[ MXF::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' )
       @frame_rate = @asset_meta[ MXF::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' ) # FIXME SampleRate?
-      @screen_aspect_ratio = @asset_meta[ MXF::MXF_KEYS_ASPECT_RATIO ].to_s.gsub( '/', ' ' )
+      # get screen_aspect_ratio not from MXF metadata, because asdcp-lib delivers
+      # "wrong" values for mpeg2
+      @screen_aspect_ratio =  dcp_functions.get_screen_aspect_ratio(dimensions)
+      @mimetype = dcp_functions.video_mimetype
     end # def
   end # class
             
@@ -191,7 +194,7 @@ module DCP
       content_version_id = cpl_uuid + '_' + DateTime.now.to_s,
       @logger.debug("add_cpl: content_version_id = #{ content_version_id }")
       content_version_label = content_version_id
-      cpl = CPL_SMPTE_429_7_2006.new( cpl_uuid, dcp_reels, @dcp_common_info, content_title, content_kind, content_version_id, content_version_label, rating_list )
+      cpl = CPL_GENERIC.new( cpl_uuid, dcp_reels, @dcp_common_info, content_title, content_kind, content_version_id, content_version_label, rating_list,  @dcp_functions)
       if @dcp_common_info.sign
 	cpl_new = DCSignature::DCSignature.new( cpl.xml,  @signature_context.signer_key, @signature_context.certchain_objs )
 	cpl = cpl_new
@@ -250,9 +253,6 @@ module DCP
     def self.pkl_file( dir, name )
       File.join( dir, 'pkl_' + name + '_.xml' )
     end
-    def self.am_file( dir )
-      File.join( dir, 'ASSETMAP.xml' )
-    end
     def self.st_file( dir, name )
       File.join( dir, 'st_' + name + '_.xml' )
     end
@@ -285,10 +285,11 @@ module DCP
       @logger.debug( "PKL UUID:       #{ pkl_uuid }" )
       @pkl_file = DCP::pkl_file( @dcpdir, pkl_uuid )
       
-      pkl = PKL_SMPTE_429_8_2007.new(
+      pkl = PKL_GENERIC.new(
 	pkl_uuid,
 	@dcp_common_info,
-	@pkl_assets.flatten
+	@pkl_assets.flatten,
+	@dcp_functions
       )
       if @dcp_common_info.sign
 	pkl = DCSignature::DCSignature.new( pkl.xml,   @signature_context.signer_key, @signature_context.certchain_objs )
@@ -316,11 +317,12 @@ module DCP
            
       am_uuid = ShellCommands.uuid_gen
       @logger.debug( "AM UUID:        #{ am_uuid }" )
-      @am_file = DCP::am_file( @dcpdir)
-      @am = AM_SMPTE_429_9_2007.new(
+      @am_file = @dcp_functions.am_file_name( @dcpdir )
+      @am = AM_GENERIC.new(
 	am_uuid,
 	@dcp_common_info,
-	am_assets.flatten
+	am_assets.flatten,
+	@dcp_functions
       )
       if File.exists?( @am_file)
 	@am.merge(@am_file)
@@ -330,14 +332,15 @@ module DCP
   end # class
   
   # assets here are objects of type DCPAsset
-  class PKL_SMPTE_429_8_2007
-    def initialize( pkl_uuid, dcp_common_info, assets )
+  class PKL_GENERIC
+    def initialize( pkl_uuid, dcp_common_info, assets, dcp_functions )
       @logger = Logger::Logger.instance
+      @dcp_functions = dcp_functions
       issue_date = DateTime.now.to_s
       asset_hashes = Hash.new
       @builder = Nokogiri::XML::Builder.new( :encoding => 'UTF-8' ) do |xml|
- 	xml.PackingList_( :xmlns => 'http://www.smpte-ra.org/schemas/429-8/2007/PKL', 'xmlns:dsig' => 'http://www.w3.org/2000/09/xmldsig#' ) {
-	  xml<< "<!-- #{ AppName } #{ AppVersion } smpte pkl -->"
+ 	xml.PackingList_( :xmlns => @dcp_functions.pkl_ns, 'xmlns:dsig' =>  @dcp_functions.ds_dsig ) {
+	  xml<< "<!-- #{ AppName } #{ AppVersion } #{@dcp_functions.dcp_kind} pkl -->"
 	  xml.Id_ "urn:uuid:#{ pkl_uuid }"
 	  xml.AnnotationText_ dcp_common_info.annotation
 	  xml.IssueDate_ issue_date
@@ -363,7 +366,7 @@ module DCP
       return @builder.to_xml( :indent => 2 )
     end # def 
     
-  end # PKL_SMPTE_429_8_2007
+  end # PKL_GENERIC
   
   class DCSubtitleLine
     attr_reader :valign, :halign, :hpos, :vpos, :text
@@ -379,7 +382,7 @@ module DCP
   class DCSingleSubtitle
     attr_reader :time_in, :time_out, :fadeup_time, :fadedown_time, :text_lines
     def initialize( time_in, time_out, fadeup_time, fadedown_time, text_lines )
-      qtime_in = time_in
+      @time_in = time_in
       @time_out = time_out
       @fadeup_time = fadeup_time
       @fadedown_time = fadedown_time
@@ -389,7 +392,8 @@ module DCP
   
   # DCSubtitle is not defined by a schema but by DTD
   class DC_SUBTITLE
-    def initialize( subtitle_id, movie_title, reel_number, language, font_id, font_uri, font_size, font_weight, font_color, font_effect, font_effect_color, subtitle_list )
+    def initialize( subtitle_id, movie_title, reel_number, language, font_id, font_uri, font_size, font_weight, font_color, font_effect, font_effect_color, subtitle_list, dcp_functions )
+      @dcp_functions = dcp_functions
       @builder = Nokogiri::XML::Builder.new( :encoding => 'UTF-8' ) do |xml|
 	xml.DCSubtitle_( 'Version' => "1.0" ) {
 	  xml<< "<!-- #{ AppName } #{ AppVersion } DCSubtitle -->"
@@ -426,7 +430,8 @@ module DCP
   #
   # Not yet tested.
   class DCST_SMPTE_428_7_2007
-    def initialize( subtitle_reel_id, content_title_text, annotation_text, reel_number, language, edit_rate, time_code_rate, start_time, fonts, default_font_color_code, default_font_name, default_font_size, default_font_weight, subtitles )
+    def initialize( subtitle_reel_id, content_title_text, annotation_text, reel_number, language, edit_rate, time_code_rate, start_time, fonts, default_font_color_code, default_font_name, default_font_size, default_font_weight, subtitles, dcp_functions  )
+      @dcp_functions = dcp_functions
       issue_date = DateTime.now.to_s
       @builder = Nokogiri::XML::Builder.new( :encoding => 'UTF-8' ) do |xml|
 	xml.SubtitleReel_( 'xmlns:dcst' => "http://www.smpte-ra.org/schemas/428-7/2007/DCST", 'xmlns:xs' => "http://www.w3.org/2001/XMLSchema", 'targetNamespace' => "http://www.smpte-ra.org/schemas/428-7/2007/DCST", 'elementFormDefault' => "qualified", 'attributeFormDefault' => "unqualified" ) {
@@ -463,15 +468,16 @@ module DCP
     end # def 
   end # DCST_SMPTE_428_7_2007 
   
-  class CPL_SMPTE_429_7_2006
+  class CPL_GENERIC
     attr_reader :uuid
-    def initialize( cpl_uuid, dcp_reels, dcp_common_info, content_title, content_kind, content_version_id, content_version_label, rating_list )
+    def initialize( cpl_uuid, dcp_reels, dcp_common_info, content_title, content_kind, content_version_id, content_version_label, rating_list, dcp_functions )
       @logger = Logger::Logger.instance
-      @logger.debug("CPL_SMPTE_429_7_2006 init: content_version_id = #{ content_version_id }")
+      @dcp_functions = dcp_functions
+      @logger.debug("CPL_GENERIC init: content_version_id = #{ content_version_id }")
       issue_date = DateTime.now.to_s
       @builder = Nokogiri::XML::Builder.new( :encoding => 'UTF-8' ) do |xml|
-	xml.CompositionPlaylist_( :xmlns => 'http://www.smpte-ra.org/schemas/429-7/2006/CPL', 'xmlns:dsig' => 'http://www.w3.org/2000/09/xmldsig#' ) {
-	  xml<< "<!-- #{ AppName } #{ AppVersion } smpte cpl -->"
+	xml.CompositionPlaylist_( :xmlns => @dcp_functions.cpl_ns, 'xmlns:dsig' => @dcp_functions.ds_dsig ) {
+	  xml<< "<!-- #{ AppName } #{ AppVersion } #{@dcp_functions.dcp_kind} cpl -->"
 	  xml.Id_ "urn:uuid:#{ cpl_uuid }"
 	  xml.AnnotationText_ dcp_common_info.annotation
 	  xml.IssueDate_ issue_date
@@ -479,10 +485,9 @@ module DCP
 	  xml.Creator_ dcp_common_info.creator
 	  xml.ContentTitleText_ content_title
 	  xml.ContentKind_ content_kind
-	  xml.ContentVersion_ {
-	    xml.Id_ "urn:uri:#{ content_version_id }"
-	    xml.LabelText_ content_version_label
-	  } # ContentVersion
+	
+	  @dcp_functions.content_version_fragment(content_version_id, content_version_label, xml )
+	
 	  xml.RatingList_ "#{ rating_list.nil? ? '' : rating_list }"
 	  xml.ReelList_ {
 	    dcp_reels.each do |dcp_reel|
@@ -507,7 +512,7 @@ module DCP
 	                # and duration
 	                # see also the fixme's below
 		  if image_asset.stereoscopic
-		    xml.MainStereoscopicPicture_( 'xmlns:msp-cpl' => 'http://www.smpte-ra.org/schemas/429-10/2008/Main-Stereo-Picture-CPL' ) {
+		    xml.MainStereoscopicPicture_( 'xmlns:msp-cpl' => @dcp_functions.cpl_3d_ns ) {
 		      mainpicture_fragment(image_asset, xml)                                                                                                      
 		    } # MainStereoscopicPicture
 		  else
@@ -565,6 +570,7 @@ module DCP
     
     private
     
+    
     def mainpicture_fragment(image_asset, xml)
       xml.Id_ "urn:uuid:#{ image_asset.id }"
       xml.EditRate_ image_asset.edit_rate 
@@ -576,19 +582,21 @@ module DCP
 	xml.Hash_ image_asset.asset_hash
       end
       xml.FrameRate_ image_asset.frame_rate # FIXME SampleRate?
+      # correct SMPTE OR MXF INTEROP screen aspect ratio already calculated during creation of image_asset
       xml.ScreenAspectRatio_ image_asset.screen_aspect_ratio
     end
 
-  end # CPL_SMPTE_429_7_2006
+  end # CPL_GENERIC
 
-  class AM_SMPTE_429_9_2007
-    def initialize( am_uuid, dcp_common_info, assets )
+  class AM_GENERIC
+    def initialize( am_uuid, dcp_common_info, assets, dcp_functions )
+      @dcp_functions = dcp_functions
       @logger = Logger::Logger.instance
-      @am_namespace = 'http://www.smpte-ra.org/schemas/429-9/2007/AM'
+      @am_namespace = @dcp_functions.am_ns
       issue_date = DateTime.now.to_s
       @builder = Nokogiri::XML::Builder.new( :encoding => 'UTF-8' ) do |xml|
 	xml.AssetMap_( :xmlns => @am_namespace ) {
-	  xml<< "<!-- #{ AppName } #{ AppVersion } smpte am -->"
+	  xml<< "<!-- #{ AppName } #{ AppVersion } #{@dcp_functions.dcp_kind} am -->"
 	  xml.Id_ "urn:uuid:#{ am_uuid }"
 	  xml.Creator_ dcp_common_info.creator
 	  xml.VolumeCount_ '1' # FIXME
@@ -640,7 +648,7 @@ module DCP
       return @builder.to_xml( :indent => 2 )
     end
 
-  end # class AM_SMPTE_429_9_2007
+  end # class AM_GENERIC
 
   
 end

@@ -7,7 +7,7 @@ module KDM_Gen
   require 'DCP'
   
   ShellCommands = ShellCommands::ShellCommands
-  CPL_XSD = "/home/home-10.1/Documents/Programmkino/wolfgangw-digital_cinema_tools-6a03857/xsd/SMPTE-429-7-2006-CPL.xsd"
+  CPL_XSD = "/home/home-10.1/Documents/Programmkino/rubyscripts/digital_cinema_tools/xsd/SMPTE-429-7-2006-CPL.xsd"
 
   class KDM_CPL_Info
     attr_reader :cpl_uuid, :content_title_text, :key_ids_types, :content_authenticator
