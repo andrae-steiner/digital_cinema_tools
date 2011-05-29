@@ -144,7 +144,7 @@ module DCPFunctions
       #
       #mencoder mf://cinemaslides_3_2011-01-23T14:39:18+01:00_fullpreview/conform/*.jpg -mf w=1920:h=1080:fps=24:type=jpg -ovc lavc -lavcopts vcodec=mjpeg -o ast.mpg
       #
-      x,y = dimensions[ ASPECT_CONTAINER ].collect{|x| x * output_type.size.split( '' ).first.to_i}
+      x,y = dimensions[ OutputType::ASPECT_CONTAINER ].collect{|x| x * output_type.size.split( '' ).first.to_i}
 
       # `mencoder mf://#{File.join(output_type.conformdir, '*.jpg')} -mf w=#{x}:h=#{y}:fps=#{output_type.fps}:type=jpg -ovc lavc -lavcopts vcodec=mjpeg -o #{output_type.dcp_image_sequence_name}`
       `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(output_type.conformdir, ImageSequence::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y} -qscale 1 -qmin 1 -intra -r #{output_type.fps} -an #{output_type.dcp_image_sequence_name}`
