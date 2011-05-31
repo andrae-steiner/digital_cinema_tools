@@ -5,6 +5,7 @@ module ImageSequence
   require 'ShellCommands'
   require 'OptParser'
   require 'tempfile'
+  require 'CinemaslidesCommon'
 
   ShellCommands = ShellCommands::ShellCommands
   
@@ -120,12 +121,14 @@ module ImageSequence
     def incr_imagecount
       @imagecount_mutex.synchronize do
 	@imagecount += 1
+	Thread.current["imagecount"] = @imagecount
       end
     end
     
     def get_imagecount
       @imagecount_mutex.synchronize do
-	@imagecount
+	Thread.current["imagecount"]
+#	@imagecount
       end
     end
 
@@ -276,6 +279,7 @@ module ImageSequence
     end
 
     def black_sequence( duration , file_sequence)
+      @logger.debug("BLACK SEQUENCE OF #{duraation} SECONDS.")
       full_level( image = create_black_asset() {|a| @output_type_obj.create_blackframe(a)}, 
                   duration, 
                   file_sequence )
@@ -298,33 +302,6 @@ module ImageSequence
       "(#{ get_imagecount } of #{ @source.length })"
     end
     
-    # calculate indices of source for multithreading
-    def get_indices
-      n_threads = OptParser::Optparser.get_options.n_threads
-      indices = Array.new
-      n_elements = @source.length/n_threads
-      remainder = @source.length%n_threads
-      if (n_elements == 0) 
-	remainder.times do |i|
-	  indices << [i,i]
-	end
-      else
-	len2 = @source.length+n_threads-1
-	(n_threads-remainder).times do |i|
-	  start_index = i*len2/n_threads
-	  end_index   = (i == (n_threads - 1)) ? @source.length - 1 : (i + 1)*len2/n_threads - 1
-	  indices << [start_index, end_index]
-	end
-	remainder.times do |i|
-	  f = i + n_threads-remainder
-	  start_index = f*(len2)/n_threads - i
-	  end_index   = (f == (n_threads - 1)) ? @source.length - 1 : (f + 1)*len2/n_threads - 1 - (i + 1)
-	  indices << [start_index, end_index]
-	end
-      end
-      return indices
-    end
-
 
   end # ImageSequence
 
@@ -332,7 +309,7 @@ module ImageSequence
             
     def create_transitions
       threads = Array.new
-      indices = get_indices
+      indices = CinemaslidesCommon::split_indices(@source)
       # start the threads
       indices.length.times do |i|
 	start_index, end_index = indices[i]
@@ -370,16 +347,17 @@ module ImageSequence
   class CrossfadeTransitionsImageSequence < ImageSequence
     
     def self.n_of_images_ok?(source)
+      logger = Logger::Logger.instance
       if source.length <= 1
-	@logger.warn( "Can't crossfade less than 2 images (#{ source.first })" )
-	@logger.info( "Either supply more than 1 image or change transition_and_timing to fade specs ('-x fade,a,b,c')" )
+	logger.warn( "Can't crossfade less than 2 images (#{ source.first })" )
+	logger.info( "Either supply more than 1 image or change transition_and_timing to fade specs ('-x fade,a,b,c')" )
       end
       return source.length > 1
     end
     
     def create_transitions
       threads = Array.new
-      indices = get_indices
+      indices = CinemaslidesCommon::split_indices(@source)
       # start the threads
       indices.length.times do |thread_i|
 	start_index, end_index = indices[thread_i]
@@ -399,6 +377,7 @@ module ImageSequence
 	    crossfade( image1, image2,  @crossfade_time, file_sequence )
 	  end
 	  if (thread_i == indices.length - 1)
+	    incr_imagecount()
 	    full_level( keeper,  @duration, file_sequence )
 	  end
 	end  #       Thread.new do

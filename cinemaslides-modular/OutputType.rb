@@ -158,7 +158,7 @@ module OutputType
     def create_output_type2 (source, source_audio, signature_context)
       setup_output_directories(source.empty?, source_audio.empty?)
       @image_sequence = ImageSequence.const_get(image_sequence_classnames[@options.transition_and_timing.first]).new(
-	source          = source, 
+	source, 
 	output_type_obj = self,
 	output_format   = @options.output_format, 
 	resize          = @options.resize,
@@ -170,7 +170,7 @@ module OutputType
 	fade_out_time   = @options.fade_out_time, 
 	crossfade_time  = @options.crossfade_time) 
       @audio_sequence = AudioSequence::AudioSequence.new(
-	source           = source_audio,
+	source_audio,
 	image_sequence   = @image_sequence,
 	output_type_obj  = self, 
 	fps              = @fps,
@@ -181,7 +181,7 @@ module OutputType
 	)
       display_summary(
 	Summary_context.new(
-	      source = source,
+	      source,
 	      n_sequence_frames = @image_sequence.n_sequence_frames,
 	      signer_cert_obj = signature_context.signer_cert_obj
 	))  
@@ -198,12 +198,19 @@ module OutputType
       end # montage
 
       ### Create all frames
-      @final_audio = @audio_sequence.audio_source_to_pcm if !source_audio.empty?
+      @final_audio = nil
+      
+      t1 = Thread.new do
+	@final_audio = @audio_sequence.audio_source_to_pcm if !source_audio.empty?
+      end
 
       Dir.mkdir( @workdir ) unless File.exists?( @workdir )
       Dir.mkdir( @conformdir )
-           
-      @image_sequence.create_image_sequence
+      t2 = Thread.new do      
+	@image_sequence.create_image_sequence
+      end
+      t1.join(); t2.join();
+      
       ###
      
     end # create_output_type2

@@ -251,9 +251,7 @@ module DCPFunctions
 	    convert_to_dcp_image_format_2( files.size(), image_sequence, files[start_index..end_index], output_type )
         end  #       Thread.new do
       end # N_THREADS.times do |i|
-      threads.each do |t|
-          t.join()
-      end                            
+      threads.each {|t|  t.join()}
     end # def convert_to_dcp_image_format_threaded (image_sequence, output_type)
                                 
     def convert_to_dcp_image_format_single_thread( image_sequence, output_type )
