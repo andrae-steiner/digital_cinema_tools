@@ -82,6 +82,7 @@ require 'ShellCommands'
 require 'DCP'
 require 'DCPFunctions'
 require 'KDM_SMPTE_430_1_2006'
+require 'CinemaslidesCommon'
 
 include TimeDateUtils
 
@@ -114,67 +115,67 @@ class File
 end
 
 def key_types
-  { DCP::MAIN_PICTURE_ASSET_TYPE => KDM_SMPTE_430_1_2006::KEYTYPE_MDIK, 
-    DCP::MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE => KDM_SMPTE_430_1_2006::KEYTYPE_MDIK, 
-    DCP::MAIN_SOUND_ASSET_TYPE => KDM_SMPTE_430_1_2006::KEYTYPE_MDAK, 
-    DCP::MAIN_SUBTITLE_ASSET_TYPE => KDM_SMPTE_430_1_2006::KEYTYPE_MDSK }
+  { CinemaslidesCommon::MAIN_PICTURE_ASSET_TYPE => CinemaslidesCommon::KEYTYPE_MDIK, 
+    CinemaslidesCommon::MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE => CinemaslidesCommon::KEYTYPE_MDIK, 
+    CinemaslidesCommon::MAIN_SOUND_ASSET_TYPE => CinemaslidesCommon::KEYTYPE_MDAK, 
+    CinemaslidesCommon::MAIN_SUBTITLE_ASSET_TYPE => CinemaslidesCommon::KEYTYPE_MDSK }
 end
 
 def encoder_ids
-  {OptParser::ENCODER_CHOICE_OJ_TM => 'opjtm', 
-   OptParser::ENCODER_CHOICE_OJ => 'opj', 
-   OptParser::ENCODER_CHOICE_KAKADU => 'kdu' }
+  {CinemaslidesCommon::ENCODER_CHOICE_OJ_TM => 'opjtm', 
+   CinemaslidesCommon::ENCODER_CHOICE_OJ => 'opj', 
+   CinemaslidesCommon::ENCODER_CHOICE_KAKADU => 'kdu' }
 end
 def encoder_classnames
-  {OptParser::ENCODER_CHOICE_OJ_TM => 'Openjpeg_Tm_Encoder', 
-   OptParser::ENCODER_CHOICE_OJ => 'Openjpeg_Encoder', 
-   OptParser::ENCODER_CHOICE_KAKADU => 'Kakadu_Encoder' }
+  {CinemaslidesCommon::ENCODER_CHOICE_OJ_TM => 'Openjpeg_Tm_Encoder', 
+   CinemaslidesCommon::ENCODER_CHOICE_OJ => 'Openjpeg_Encoder', 
+   CinemaslidesCommon::ENCODER_CHOICE_KAKADU => 'Kakadu_Encoder' }
 end
 
 def output_type_classnames
-  { OptParser::OUTPUT_TYPE_CHOICE_PREVIEW => 'PreviewOutputType', 
-    OptParser::OUTPUT_TYPE_CHOICE_FULLPREVIEW => 'PreviewOutputType', 
-    OptParser::OUTPUT_TYPE_CHOICE_DCP => 'DCPOutputType', 
-    OptParser::OUTPUT_TYPE_CHOICE_KDM => 'KDMOutputType' }
+  { CinemaslidesCommon::OUTPUT_TYPE_CHOICE_PREVIEW => 'PreviewOutputType', 
+    CinemaslidesCommon::OUTPUT_TYPE_CHOICE_FULLPREVIEW => 'PreviewOutputType', 
+    CinemaslidesCommon::OUTPUT_TYPE_CHOICE_DCP => 'DCPOutputType', 
+    CinemaslidesCommon::OUTPUT_TYPE_CHOICE_KDM => 'KDMOutputType' }
 end
 
 def dcp_functions_classnames
-  { OptParser::OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM => 'SMPTEDCPFunctions', 
-    OptParser::OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM => 'MXFInterOpDCPFunctions', 
-    OptParser::OUTPUT_TYPE_CHOICE_NO_DCP_NORM =>  'SMPTEDCPFunctions' }
+  { CinemaslidesCommon::OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM => 'SMPTEDCPFunctions', 
+    CinemaslidesCommon::OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM => 'MXFInterOpDCPFunctions', 
+    CinemaslidesCommon::OUTPUT_TYPE_CHOICE_NO_DCP_NORM =>  'SMPTEDCPFunctions' }
 end
 
 def input_type_classnames
-  { OptParser::INPUT_TYPE_CHOICE_SLIDE => 'SlideshowInputType', 
-    OptParser::INPUT_TYPE_CHOICE_AV => 'AVContainerInputType' }
+  { CinemaslidesCommon::INPUT_TYPE_CHOICE_SLIDE => 'SlideshowInputType', 
+    CinemaslidesCommon::INPUT_TYPE_CHOICE_AV => 'AVContainerInputType' }
 end
 
 #    options.transition_and_timing_choices = [ 'cut', 'fade', 'crossfade' ]
 def image_sequence_classnames
-  { OptParser::TRANSITION_CHOICE_CUT => 'FadeOrCutTransitionsImageSequence',
-    OptParser::TRANSITION_CHOICE_FADE => 'FadeOrCutTransitionsImageSequence', 
-    OptParser::TRANSITION_CHOICE_CROSSFADE => 'CrossfadeTransitionsImageSequence' }
+  { CinemaslidesCommon::TRANSITION_CHOICE_CUT => 'FadeOrCutTransitionsImageSequence',
+    CinemaslidesCommon::TRANSITION_CHOICE_FADE => 'FadeOrCutTransitionsImageSequence', 
+    CinemaslidesCommon::TRANSITION_CHOICE_CROSSFADE => 'CrossfadeTransitionsImageSequence' }
 end
 
 
 # Beispiel für Erweiterbarkeit andrae.steiner@liwest.at
 #def image_sequence_classnames
-#  { OptParser::TRANSITION_CHOICE_CUT => 'FadeOrCutTransitionsImageSequence', 
-#    OptParser::TRANSITION_CHOICE_FADE => 'FadeOrCutTransitionsImageSequence', 
-#    OptParser::TRANSITION_CHOICE_CROSSFADE => "CrossfadeRotateTransitionsImageSequence" }
+#  { CinemaslidesCommon::TRANSITION_CHOICE_CUT => 'FadeOrCutTransitionsImageSequence', 
+#    CinemaslidesCommon::TRANSITION_CHOICE_FADE => 'FadeOrCutTransitionsImageSequence', 
+#    CinemaslidesCommon::TRANSITION_CHOICE_CROSSFADE => "CrossfadeRotateTransitionsImageSequence" }
 #end
 
 def encoder_prog
-  { OptParser::ENCODER_CHOICE_KAKADU => 'kdu_compress', 
-    OptParser::ENCODER_CHOICE_OJ => 'image_to_j2k', 
-    OptParser::ENCODER_CHOICE_OJ_TM => 'opendcp_j2k' }
+  { CinemaslidesCommon::ENCODER_CHOICE_KAKADU => 'kdu_compress', 
+    CinemaslidesCommon::ENCODER_CHOICE_OJ => 'image_to_j2k', 
+    CinemaslidesCommon::ENCODER_CHOICE_OJ_TM => 'opendcp_j2k' }
 end
 
 def mandatories
-{ OptParser::OUTPUT_TYPE_CHOICE_PREVIEW => preview_mandatory, 
-  OptParser::OUTPUT_TYPE_CHOICE_FULLPREVIEW => preview_mandatory, 
-  OptParser::OUTPUT_TYPE_CHOICE_DCP => dcp_mandatory, 
-  OptParser::OUTPUT_TYPE_CHOICE_KDM => kdm_mandatory }
+{ CinemaslidesCommon::OUTPUT_TYPE_CHOICE_PREVIEW => preview_mandatory, 
+  CinemaslidesCommon::OUTPUT_TYPE_CHOICE_FULLPREVIEW => preview_mandatory, 
+  CinemaslidesCommon::OUTPUT_TYPE_CHOICE_DCP => dcp_mandatory, 
+  CinemaslidesCommon::OUTPUT_TYPE_CHOICE_KDM => kdm_mandatory }
 end
 
 def preview_mandatory
@@ -288,7 +289,7 @@ signature_context =  X509Certificate::X509CertificateChain.new(
 ### KDM mode
 # can't be easily integrated into  output_type i
 if @options.kdm
-  @output_type_obj = OutputType::KDMOutputType.new(mandatories[OptParser::OUTPUT_TYPE_CHOICE_KDM])
+  @output_type_obj = OutputType::KDMOutputType.new(mandatories[CinemaslidesCommon::OUTPUT_TYPE_CHOICE_KDM])
   kdm_creator = KDM_Gen::KDMCreator.new(
       annotation        = @options.annotation,
       issuer            = @options.issuer,

@@ -8,8 +8,6 @@ module InputType
   
   ShellCommands = ShellCommands::ShellCommands
   
-  AUDIOSUFFIX_REGEXP = Regexp.new(/(mp3|MP3|wav|WAV|flac|FLAC|aiff|AIFF|aif|AIF|ogg|OGG)$/)
-  
   class InputType
     def initialize (source)
       @logger = Logger::Logger.instance
@@ -54,11 +52,11 @@ module InputType
 #      @image_output_dir = "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00"
       
       Dir.mkdir( @image_output_dir )
-      @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_" +AudioSequence::FILE_SUFFIX_PCM)
+      @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_" +AudioSequence::CinemaslidesCommon::FILE_SUFFIX_PCM)
 #      @audio_from_av = "/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"
       # TODO create a method in ShellCommands for this
       # FIXME do not hard code fps
-      `ffmpeg -y -i "#{ @avfile }" -an -r 24   -qscale 1 -qmin 1 -intra -b 50000k #{File.join(@image_output_dir, ImageSequence::FILE_SEQUENCE_FORMAT+".png")}`
+      `ffmpeg -y -i "#{ @avfile }" -an -r 24   -qscale 1 -qmin 1 -intra -b 50000k #{File.join(@image_output_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+".png")}`
       `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 24 -ar 48000 #{ @audio_from_av }`
       
 #      return Dir.glob( "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00/*" ).sort,  ["/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"], nil, TRUE
@@ -94,7 +92,7 @@ module InputType
 	@source = source_tmp.clone
 	
 	@source.each do |element|
-	  if element =~ AUDIOSUFFIX_REGEXP
+	  if element =~ CinemaslidesCommon::AUDIOSUFFIX_REGEXP
 	    source_audio << element
 	    source_tmp.delete( element )
 	  end
@@ -108,31 +106,23 @@ module InputType
 	# check type (image/audio)
 	no_decode_delegate = Array.new
 	source_tmp = Array.new
-	
-	indices = CinemaslidesCommon::split_indices(@source)
-
-	# start the threads
-	threads = Array.new
-	indices.length.times do |i|
-	  start_index, end_index = indices[i]
-	  threads << Thread.new do
+		
+	threads = CinemaslidesCommon::process_elements_multithreaded( @source ) {|i, indices|
+	    start_index, end_index = indices[i]
 	    @logger.debug("T:#{i}, START CHECKFILES THREAD")
 	    Thread.current["source_tmp"], 
 	    Thread.current["source_audio"], 
 	    Thread.current["no_decode_delegate"] = check_files(@source[ start_index .. end_index ])
-	  end  #       Thread.new do
-	end # indices.length.times do |i|
+	}
 	threads.each {|t| 
-	  t.join()
 	  source_tmp << t["source_tmp"]
 	  source_audio << t["source_audio"]
 	  no_decode_delegate << t["no_decode_delegate"]
-	  }                            
-	
+	}                            
 	source_tmp.flatten!.compact!
 	source_audio.flatten!.compact!
 	no_decode_delegate.flatten!.compact!	
-	
+
 	drops = FALSE
 	if not_readable_or_regular.size > 0
 	  drops = TRUE
@@ -179,7 +169,7 @@ module InputType
     # collect all file of the array source
     # and go into directories recursively
     # returns two arrays: an array of all the file names and an array of all the
-    # not readable file names
+    # not readable or not regular file names
     def collect_files( source )
       not_readable_or_regular = Array.new
       source_tmp = Array.new

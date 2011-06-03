@@ -6,7 +6,7 @@ module DCPFunctions
   require 'OptParser'
   require 'ImageSequence'
   require 'MXF'
-  require 'OutputType'
+  require 'CinemaslidesCommon'
   
   ShellCommands = ShellCommands::ShellCommands
 	
@@ -68,10 +68,10 @@ module DCPFunctions
     def initialize
       super()
       @dimensions = Hash.new
-      @dimensions[OutputType::ASPECT_FLAT]      = [960, 519] # 1.85
-      @dimensions[OutputType::ASPECT_SCOPE]     = [960, 402] # 2.38694638694639
-      @dimensions[OutputType::ASPECT_HD]        = [960, 540] # 1.77777777777778
-      @dimensions[OutputType::ASPECT_CONTAINER] = [960, 540]
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_FLAT]      = [960, 519] # 1.85
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_SCOPE]     = [960, 402] # 2.38694638694639
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_HD]        = [960, 540] # 1.77777777777778
+      @dimensions[CinemaslidesCommon::ASPECT_CONTAINER] = [960, 540]
     end
     def cpl_ns
       "http://www.digicine.com/PROTO-ASDCP-CPL-20040511#"
@@ -144,13 +144,13 @@ module DCPFunctions
       #
       #mencoder mf://cinemaslides_3_2011-01-23T14:39:18+01:00_fullpreview/conform/*.jpg -mf w=1920:h=1080:fps=24:type=jpg -ovc lavc -lavcopts vcodec=mjpeg -o ast.mpg
       #
-      x,y = dimensions[ OutputType::ASPECT_CONTAINER ].collect{|x| x * output_type.size.split( '' ).first.to_i}
+      x,y = dimensions[ CinemaslidesCommon::ASPECT_CONTAINER ].collect{|x| x * output_type.size.split( '' ).first.to_i}
 
       # `mencoder mf://#{File.join(output_type.conformdir, '*.jpg')} -mf w=#{x}:h=#{y}:fps=#{output_type.fps}:type=jpg -ovc lavc -lavcopts vcodec=mjpeg -o #{output_type.dcp_image_sequence_name}`
       
-      # `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(output_type.conformdir, ImageSequence::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y} -qscale 1 -qmin 1 -intra -r #{output_type.fps} -an #{output_type.dcp_image_sequence_name}`
+      # `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(output_type.conformdir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y} -qscale 1 -qmin 1 -intra -r #{output_type.fps} -an #{output_type.dcp_image_sequence_name}`
       
-      `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(output_type.conformdir, ImageSequence::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y} -b 40000k -intra -r #{output_type.fps} -an #{output_type.dcp_image_sequence_name}`
+      `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(output_type.conformdir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y}  -b 40000k -intra -r #{output_type.fps} -an #{output_type.dcp_image_sequence_name}`
       
     end
     def dcp_image_sequence_basename
@@ -171,10 +171,10 @@ module DCPFunctions
     def initialize
       super()
       @dimensions = Hash.new
-      @dimensions[OutputType::ASPECT_FLAT]      = [ 999, 540] # 1.85
-      @dimensions[OutputType::ASPECT_SCOPE]     = [1024, 429] # 2.38694638694639
-      @dimensions[OutputType::ASPECT_HD]        = [ 960, 540] # 1.77777777777778
-      @dimensions[OutputType::ASPECT_CONTAINER] = [1024, 540]
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_FLAT]      = [ 999, 540] # 1.85
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_SCOPE]     = [1024, 429] # 2.38694638694639
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_HD]        = [ 960, 540] # 1.77777777777778
+      @dimensions[CinemaslidesCommon::ASPECT_CONTAINER] = [1024, 540]
     end
     def cpl_ns
       "http://www.smpte-ra.org/schemas/429-7/2006/CPL"
@@ -244,17 +244,13 @@ module DCPFunctions
       @logger.info( "Encode to JPEG 2000" )
       filemask = File.join( image_sequence.conformdir, "*.#{ image_sequence.output_format }" )
       files = Dir.glob( filemask ).sort
-      
-      threads = Array.new
-      @N_THREADS.times do |i|
-	start_index = i*files.length/@N_THREADS
-	end_index   = (i == (@N_THREADS - 1)) ? files.length - 1 : (i + 1)*files.length/@N_THREADS - 1
-        threads << Thread.new do
+            
+      threads = CinemaslidesCommon::process_elements_multithreaded( files ){|i, indices|
+            start_index, end_index = indices[i]
 	    @logger.debug("START ENCODING THREAD")
 	    convert_to_dcp_image_format_2( files.size(), image_sequence, files[start_index..end_index], output_type )
-        end  #       Thread.new do
-      end # N_THREADS.times do |i|
-      threads.each {|t|  t.join()}
+      }
+      
     end # def convert_to_dcp_image_format_threaded (image_sequence, output_type)
                                 
     def convert_to_dcp_image_format_single_thread( image_sequence, output_type )

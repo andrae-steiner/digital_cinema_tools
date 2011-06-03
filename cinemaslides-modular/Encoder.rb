@@ -1,11 +1,9 @@
 module Encoder
   
   require 'ShellCommands'
-  require 'OptParser'
+  require 'CinemaslidesCommon'
   ShellCommands = ShellCommands::ShellCommands
   
-  DCP_MAX_BPS = 250000000
-
   class Encoder
       def initialize(size, stereo, fps)
 	@size = size
@@ -19,9 +17,9 @@ module Encoder
     class Openjpeg_Tm_Encoder < Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
-	if size == OptParser::CONTAINER_SIZE_2K
+	if size == CinemaslidesCommon::CONTAINER_SIZE_2K
 	  @profile = "-p cinema2k -r  #{ stereo ? 48 : fps }"
-	elsif size == OptParser::CONTAINER_SIZE_4K
+	elsif size == CinemaslidesCommon::CONTAINER_SIZE_4K
 	  @profile = "-p cinema4k"
 	end
       end
@@ -33,9 +31,9 @@ module Encoder
     class Kakadu_Encoder < Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
-	if size == OptParser::CONTAINER_SIZE_2K
+	if size == CinemaslidesCommon::CONTAINER_SIZE_2K
 	  @profile = "CINEMA2K"
-	elsif size == OptParser::CONTAINER_SIZE_4K
+	elsif size == CinemaslidesCommon::CONTAINER_SIZE_4K
 	  @profile = "CINEMA4K"
 	end
 	@max_bytes_per_image, @max_bytes_per_component = jpeg2000_dcp_rate_constraints( stereo ? 48.0 : fps )
@@ -47,7 +45,7 @@ module Encoder
       private 
       
       def jpeg2000_dcp_rate_constraints( fps ) # returns bytes
-	max_per_image = ( DCP_MAX_BPS / 8 / fps ).floor
+	max_per_image = ( CinemaslidesCommon::DCP_MAX_BPS / 8 / fps ).floor
 	max_per_component = ( max_per_image / 1.25 ).floor
 	return max_per_image, max_per_component
       end
@@ -57,9 +55,9 @@ module Encoder
     class Openjpeg_Encoder < Encoder
       def initialize(size, stereo, fps)
 	super(size, stereo, fps)
-	if size == OptParser::CONTAINER_SIZE_2K
+	if size == CinemaslidesCommon::CONTAINER_SIZE_2K
 	  @profile = "cinema2K #{ stereo ? 48 : fps }"
-	elsif size == OptParser::CONTAINER_SIZE_4K
+	elsif size == CinemaslidesCommon::CONTAINER_SIZE_4K
 	  @profile = "cinema4K"
 	end
       end

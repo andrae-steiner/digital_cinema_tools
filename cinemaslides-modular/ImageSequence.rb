@@ -9,9 +9,6 @@ module ImageSequence
 
   ShellCommands = ShellCommands::ShellCommands
   
-  THUMBFILE_SUFFIX = ".jpg"
-  FILE_SEQUENCE_FORMAT = "%06d"
-
   class FileSequence
     attr_reader :framecount
     def initialize (dir, output_format, fps, starting_frame)
@@ -24,7 +21,7 @@ module ImageSequence
     end
 
     def next_file
-      file = File.join( @dir, "#{ FILE_SEQUENCE_FORMAT % @framecount }.#{ @output_format }" )
+      file = File.join( @dir, "#{ CinemaslidesCommon::FILE_SEQUENCE_FORMAT % @framecount }.#{ @output_format }" )
       @framecount += 1
       file
     end
@@ -100,7 +97,7 @@ module ImageSequence
       @logger.info( "Create thumbnails" )
       thumbs = Array.new
       @source.each do |single_source|
-	thumbasset, todo = @thumb_asset_functions.check_for_asset(single_source, THUMBFILE_SUFFIX)
+	thumbasset, todo = @thumb_asset_functions.check_for_asset(single_source, CinemaslidesCommon::THUMBFILE_SUFFIX)
 	if todo
 	  @logger.info( "Thumb for #{ single_source }" )
 	  ShellCommands.IM_convert_thumb( single_source, @output_type_obj.thumbs_dimensions, thumbasset)
@@ -109,7 +106,7 @@ module ImageSequence
       end
       thumbs = thumbs.join(' ')
       # cache montages, wacky-hacky using string of all thumbnail filenames (md5 hexdigest and some) to match
-      thumbs_asset, todo =  @thumb_asset_functions.check_for_montage_asset(thumbs, THUMBFILE_SUFFIX )
+      thumbs_asset, todo =  @thumb_asset_functions.check_for_montage_asset(thumbs, CinemaslidesCommon::THUMBFILE_SUFFIX )
       if todo
 	ShellCommands.IM_montage(thumbs, @source.length, @output_type_obj.thumbs_dimensions, thumbs_asset)
       end
@@ -253,7 +250,7 @@ module ImageSequence
     end
     
     def create_black_asset( &block )
-      return create_asset( Asset::FILENAME_BLACK_FRAME,  level = nil, &block )
+      return create_asset( CinemaslidesCommon::FILENAME_BLACK_FRAME,  level = nil, &block )
     end
 
     def full_level( image, duration, file_sequence )
@@ -306,25 +303,19 @@ module ImageSequence
   end # ImageSequence
 
   class FadeOrCutTransitionsImageSequence < ImageSequence
-            
+    
     def create_transitions
-      threads = Array.new
-      indices = CinemaslidesCommon::split_indices(@source)
-      # start the threads
-      indices.length.times do |i|
-	start_index, end_index = indices[i]
+      threads = CinemaslidesCommon::process_elements_multithreaded( @source ){|i, indices|
+        start_index, end_index = indices[i]
+	@logger.debug("START CREATE_TRANSITIONS THREAD")
 	file_sequence = FileSequence.new(@conformdir, @output_format, @fps, 
                                                 starting_frame = (@black_leader + start_index * ( @fade_in_time + @duration + @fade_out_time ) ) * @fps)
-        threads << Thread.new do
-	  @logger.debug("START CREATE_TRANSITIONS THREAD")
-	  @source[start_index..end_index].each do |source_element|
-	    incr_imagecount()
-	    image = conform( source_element )
-	    fade_in_hold_fade_out( image, @fade_in_time, @duration, @fade_out_time, file_sequence )
-	  end
-	end  #       Thread.new do
-      end # indices.length.times do |i|
-      threads.each {|t| t.join()}                            
+	@source[start_index..end_index].each do |source_element|
+	  incr_imagecount()
+	  image = conform( source_element )
+	  fade_in_hold_fade_out( image, @fade_in_time, @duration, @fade_out_time, file_sequence )
+	end
+      }
     end
     
     def create_transitions_single_thread
@@ -356,15 +347,11 @@ module ImageSequence
     end
     
     def create_transitions
-      threads = Array.new
-      indices = CinemaslidesCommon::split_indices(@source)
-      # start the threads
-      indices.length.times do |thread_i|
-	start_index, end_index = indices[thread_i]
-	file_sequence = FileSequence.new(@conformdir, @output_format, @fps, 
-                                                starting_frame = (@black_leader + start_index * ( @crossfade_time + @duration ) ) * @fps)
-        threads << Thread.new do
+      threads = CinemaslidesCommon::process_elements_multithreaded( @source ){|thread_i, indices|
+          start_index, end_index = indices[thread_i]
 	  @logger.debug("START CREATE_TRANSITIONS THREAD")
+	  file_sequence = FileSequence.new(@conformdir, @output_format, @fps, 
+                                                starting_frame = (@black_leader + start_index * ( @crossfade_time + @duration ) ) * @fps)
 	  keeper = conform( @source[ start_index ] ) # keep a conform for the next crossfade (2nd will be 1st then, don't conform again)
 	  count = end_index - start_index + 1
 	  count = count - 1 if (thread_i == indices.length - 1) 
@@ -380,9 +367,7 @@ module ImageSequence
 	    incr_imagecount()
 	    full_level( keeper,  @duration, file_sequence )
 	  end
-	end  #       Thread.new do
-      end # indices.length.times do |thread_i|
-      threads.each {|t| t.join()}                            
+      }
     end
 
     

@@ -1,4 +1,5 @@
 module ShellCommands
+  require 'CinemaslidesCommon'
     
   class ShellCommands
     def self.image_identify_command( file )
@@ -105,7 +106,7 @@ module ShellCommands
 	-background black \
 	-gravity center \
 	-extent #{ dimensions } \
-	-recolor '#{ OutputType::SRGB_TO_XYZ }' \
+	-recolor '#{ CinemaslidesCommon::SRGB_TO_XYZ }' \
 	-gamma 2.6 \
 	-depth 12 \
 	-compress none  \

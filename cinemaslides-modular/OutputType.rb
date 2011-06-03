@@ -12,21 +12,10 @@ module OutputType
   require 'AudioSequence'
   require 'MXF'
   require 'DCP'
-        
-  TESTING = FALSE
-  ASPECT_FLAT      = OptParser::ASPECT_CHOICE_FLAT # 1.85 : 1
-  ASPECT_SCOPE     = OptParser::ASPECT_CHOICE_SCOPE # 2.39 : 1
-  ASPECT_HD        = OptParser::ASPECT_CHOICE_HD # 1.77 : 1
-  ASPECT_CONTAINER = 'container'
-
-  
+  require 'CinemaslidesCommon'
+          
   ShellCommands = ShellCommands::ShellCommands
-  SRGB_TO_XYZ = "0.4124564 0.3575761 0.1804375 0.2126729 0.7151522 0.0721750 0.0193339 0.1191920 0.9503041"
-  ITUREC709_TO_XYZ = "0.412390799265959  0.357584339383878  0.180480788401834 0.21263900587151 0.715168678767756 0.0721923153607337 0.0193308187155918 0.119194779794626 0.950532152249661"
-
-
-  THUMB_DIMENSIONS_FACTOR = 6
-
+  
   class Summary_context
     attr_reader :source, :n_sequence_frames, :signer_cert_obj
     def initialize(source, n_sequence_frames, signer_cert_obj)
@@ -130,7 +119,7 @@ module OutputType
     def initialize(mandatory, dcp_functions)
       super(mandatory, dcp_functions)
       @dimensions = width_x_height
-      @thumbs_dimensions = calc_thumbsdimensions(THUMB_DIMENSIONS_FACTOR)
+      @thumbs_dimensions = calc_thumbsdimensions(CinemaslidesCommon::THUMB_DIMENSIONS_FACTOR)
       @jpeg2000_codec = @options.jpeg2000_codec
       @size = @options.size
       @fps = @options.fps
@@ -291,7 +280,7 @@ module OutputType
     def width_x_height
       container_multiplier = @options.size.split( '' ).first.to_i
       dcp_dimensions = @dcp_functions.dimensions
-      container_width, container_height = dcp_dimensions[ ASPECT_CONTAINER ].collect{|x| x * container_multiplier}
+      container_width, container_height = dcp_dimensions[ CinemaslidesCommon::ASPECT_CONTAINER ].collect{|x| x * container_multiplier}
       @logger.debug( "Container: #{ container_width } x #{ container_height } (1k multiplier: #{ container_multiplier })" )
       
       if dcp_dimensions.has_key?( @options.aspect ) 
@@ -518,23 +507,23 @@ module OutputType
 	subtitle_list     = [st1, st2],
 	dcp_functions     = @dcp_functions)
       st_filename = DCP::DCP::st_file( @options.dcpdir, st_uuid )
-      File.open( st_filename, 'w' ) { |f| f.write( dc_subtitle.xml ) } if TESTING
+      File.open( st_filename, 'w' ) { |f| f.write( dc_subtitle.xml ) } if CinemaslidesCommon::TESTING
        
-      dcp_subtitle_asset = DCP::DCPSubtitleAsset.new( st_filename, @dcp_functions, edit_rate = "24 1", intrinsic_duration=168, entry_point=0, duration=168) if TESTING
+      dcp_subtitle_asset = DCP::DCPSubtitleAsset.new( st_filename, @dcp_functions, edit_rate = "24 1", intrinsic_duration=168, entry_point=0, duration=168) if CinemaslidesCommon::TESTING
 #for testing
       
       smpte_dcp.add_cpl(
 	[ DCP::DCPReel.new(
            dcp_image_asset, 
            dcp_audio_asset,
-           subtitle_asset = !TESTING ? nil : dcp_subtitle_asset # for testing
+           subtitle_asset = !CinemaslidesCommon::TESTING ? nil : dcp_subtitle_asset # for testing
         ) ],
 	content_title = @options.dcp_title,
 	content_kind = @options.dcp_kind,
 	rating_list = nil
       )
       
-      smpte_dcp.add_font(font_filename, DCP::MIMETYPE_TTF)  if TESTING
+      smpte_dcp.add_font(font_filename, DCP::MIMETYPE_TTF)  if CinemaslidesCommon::TESTING
       
       smpte_dcp.write_ov_dcp
            

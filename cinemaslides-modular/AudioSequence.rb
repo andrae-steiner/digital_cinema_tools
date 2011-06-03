@@ -3,10 +3,9 @@ module AudioSequence
   require 'Logger'
   require 'ShellCommands'
   require 'Asset'
+  require 'CinemaslidesCommon'
   ShellCommands = ShellCommands::ShellCommands
-  
-  FILE_SUFFIX_PCM = ".wav"
-  
+    
 ### Process audio (asset-audio depot is still a moving target, bugs lurking etc., as of v0.2010.09.07)
 #
 # user can specify -- alongside with any number of images -- any number of audio files
@@ -69,7 +68,7 @@ module AudioSequence
 
       # c) splice d) trim
       
-      conform_sequence_audio(conformed_audio_list,  "_" + FILE_SUFFIX_PCM )
+      conform_sequence_audio(conformed_audio_list,  "_" + CinemaslidesCommon::FILE_SUFFIX_PCM )
       
       # e) pad with silence for black leader/tail
       audio_leader = ( @black_leader > 0 ? conform_silence( @black_leader) : '' )
@@ -91,7 +90,7 @@ module AudioSequence
     def conform_sequence_audio (conformed_audio_list, suffix)
       image_sequence_length_seconds = @image_sequence.n_image_sequence_frames / @fps
       image_sequence_length_hms = hms_from_seconds( image_sequence_length_seconds ) #  needed for sox/trim
-      @sequence_audio_asset, todo = @asset_functions.check_for_sequence_audio_asset( conformed_audio_list, image_sequence_length_seconds, "_" + FILE_SUFFIX_PCM )
+      @sequence_audio_asset, todo = @asset_functions.check_for_sequence_audio_asset( conformed_audio_list, image_sequence_length_seconds, "_" + CinemaslidesCommon::FILE_SUFFIX_PCM )
       if todo
 	sequence_audio_asset_tmp = File.join( @output_type_obj.assetsdir_audio, 'tmp-' + File.basename( @sequence_audio_asset ) )
 	ShellCommands.sox_splice_command( conformed_audio_list.join( ' ' ), sequence_audio_asset_tmp )
@@ -102,7 +101,7 @@ module AudioSequence
         
     def conform_audio( audiofile )
       @logger.info( "Conform audio: #{ audiofile }" )
-      asset, todo = @asset_functions.check_for_asset(audiofile, "_" + FILE_SUFFIX_PCM )
+      asset, todo = @asset_functions.check_for_asset(audiofile, "_" + CinemaslidesCommon::FILE_SUFFIX_PCM )
       # asset, todo = check_for_audio_asset( audiofile, samplerate, bps, channelcount )
       if todo
 	# also  normalise to -20 dB FS (SMPTE 428-2-2006)
@@ -112,7 +111,7 @@ module AudioSequence
     end
 
     def conform_silence( seconds)
-      silence_conform, todo = @asset_functions.check_for_silence_asset( FILE_SUFFIX_PCM, seconds, level = nil )
+      silence_conform, todo = @asset_functions.check_for_silence_asset( CinemaslidesCommon::FILE_SUFFIX_PCM, seconds, level = nil )
       if todo
 	# alternatively, use asdcplib's blackwave (blackwave -d <frame_count> output)
 	ShellCommands.sox_silence_command(@audio_samplerate, @audio_bps, @audio_channel_count, silence_conform, seconds)

@@ -2,20 +2,9 @@ module MXF
   
   require 'Logger'
   require 'ShellCommands'
-  require 'KDM_SMPTE_430_1_2006'
+  require 'CinemaslidesCommon'
+  
   ShellCommands = ShellCommands::ShellCommands
-  
-  MXF_KEYS_ASSETUUID            = 'AssetUUID' 
-  MXF_KEYS_CONTAINER_DURATION   = 'ContainerDuration' 
-  MXF_KEYS_CRYPTOGRAPHIC_KEY_ID = 'CryptographicKeyID'
-  MXF_KEYS_SAMPLE_RATE          = 'SampleRate'
-  MXF_KEYS_EDIT_RATE            = 'EditRate'
-  MXF_KEYS_ASPECT_RATIO         = 'AspectRatio'
-  MXF_KEYS_STEREOSCOPIC         = 'File essence type is JPEG 2000 stereoscopic pictures.'
-  MXF_KEYS_STOREDWIDTH          = 'StoredWidth'
-  MXF_KEYS_STOREDHEIGHT         = 'StoredHeight'
-
-  
   
   class MXF_Metadata < Hash
     def initialize( mxf )
@@ -73,14 +62,14 @@ module MXF
   
   class AudioMXFTrack < MXFTrack
     def initialize(dcpdir, keysdir, dcp_encrypt, fps, dcp_functions)
-      super("pcm", KDM_SMPTE_430_1_2006::KEYTYPE_MDAK,
+      super("pcm", CinemaslidesCommon::KEYTYPE_MDAK,
                    dcpdir, keysdir, FALSE, dcp_encrypt, fps, dcp_functions)
     end
   end
   
   class VideoMXFTrack < MXFTrack
     def initialize(dcpdir, keysdir, steroscopic, dcp_encrypt, fps, dcp_functions)
-      super(dcp_functions.dcp_image_sequence_basename, KDM_SMPTE_430_1_2006::KEYTYPE_MDIK, dcpdir, keysdir, steroscopic, dcp_encrypt, fps, dcp_functions)
+      super(dcp_functions.dcp_image_sequence_basename, CinemaslidesCommon::KEYTYPE_MDIK, dcpdir, keysdir, steroscopic, dcp_encrypt, fps, dcp_functions)
     end
   end
 

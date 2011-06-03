@@ -2,13 +2,9 @@ module Asset
   
   require 'ShellCommands'
   require 'Logger'
+  require 'CinemaslidesCommon'
   
   ShellCommands = ShellCommands::ShellCommands
-
-  FILENAME_BLACK_FRAME = "black"
-  MONTAGE_FILENAME_SUFFIX = "montage_"
-  SILENCE_FILENAME_PREFIX = "silence_"
-  
   
   class AssetFunctions
     def initialize(output_type_obj)
@@ -54,7 +50,7 @@ module Asset
     end
     def check_for_silence_asset( suffix, seconds, level = nil )
       suffix2 = seconds.to_s + '_' + @samplerate.to_s + '_' + @bps.to_s + '_' + @channelcount.to_s + suffix 
-      check_for_asset_2( SILENCE_FILENAME_PREFIX, suffix2, simple_conversion_proc, level = nil )
+      check_for_asset_2( CinemaslidesCommon::SILENCE_FILENAME_PREFIX, suffix2, simple_conversion_proc, level = nil )
     end
     def check_for_sequence_audio_asset (conformed_audio_list, image_sequence_length_seconds, suffix)
       set = Array.new
@@ -90,7 +86,7 @@ module Asset
       @expanded_assetsdir = File.expand_path(@output_type_obj.assetsdir)
     end
     def check_for_black_asset( suffix, level = nil )
-      check_for_asset_2( FILENAME_BLACK_FRAME, suffix, filename_to_asset_conversion_proc, nil )
+      check_for_asset_2( CinemaslidesCommon::FILENAME_BLACK_FRAME, suffix, filename_to_asset_conversion_proc, nil )
     end
     private
     def filename_to_asset_conversion_proc
@@ -100,7 +96,7 @@ module Asset
 	  id = filename_hash2( filename_s[0]) + '_' + filename_hash2( filename_s[1])
 	  origin = [ File.basename( filename_s[ 0 ] ), File.basename( filename_s[ 1 ] ) ].join( ' X ' )
 	else # not from crossfade
-	  id = File.exists?( filename_s ) ? filename_hash2( filename_s) :  FILENAME_BLACK_FRAME   
+	  id = File.exists?( filename_s ) ? filename_hash2( filename_s) :  CinemaslidesCommon::FILENAME_BLACK_FRAME   
 	  origin = File.basename( filename_s )
 	end
 	assetname = File.join( @output_type_obj.assetsdir, id + "_#{ @output_type_obj.dimensions }_#{ @resize ? 'r' : 'nr' }#{ level.nil? ? '' : '_' + level.to_s }#{ @output_type_obj.asset_suffix(suffix) }" )
@@ -136,7 +132,7 @@ module Asset
     private 
     def filename_to_montage_asset_conversion_proc
       Proc.new do |filename_s, suffix, level |
-	assetname = File.join( @output_type_obj.thumbsdir, Digest::MD5.hexdigest( filename_s ) + "_#{ @output_type_obj.thumbs_dimensions }_" + MONTAGE_FILENAME_SUFFIX + suffix )
+	assetname = File.join( @output_type_obj.thumbsdir, Digest::MD5.hexdigest( filename_s ) + "_#{ @output_type_obj.thumbs_dimensions }_" + CinemaslidesCommon::MONTAGE_FILENAME_SUFFIX + suffix )
 	origin = File.basename( filename_s )
 	assetname, origin = assetname, origin
       end

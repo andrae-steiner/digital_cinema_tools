@@ -1,9 +1,5 @@
 module KDM_SMPTE_430_1_2006
-  
-  KEYTYPE_MDIK = 'MDIK'
-  KEYTYPE_MDAK = 'MDAK'
-  KEYTYPE_MDSK = 'MDSK'
-  
+    
   # FIXME got cornered by a (weak) prototyping decision concerning keyfile format.
   # FIXME thus keys (format '<key id>:<key type>:<key data>') are passed in here 
   # FIXME when all we need for KeyIdList is type and id.

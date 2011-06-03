@@ -4,17 +4,10 @@ module DCP
   require 'ShellCommands'
   require 'DCSignature'
   require 'Logger'
+  require 'CinemaslidesCommon'
   
   
   ShellCommands = ShellCommands::ShellCommands
-  MAIN_PICTURE_ASSET_TYPE ='MainPicture'
-  MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE = 'MainStereoscopicPicture'
-  MAIN_SOUND_ASSET_TYPE = 'MainSound'
-  MAIN_SUBTITLE_ASSET_TYPE = 'MainSubtitle'
-  CPL_ASSET_TYPES = [ MAIN_PICTURE_ASSET_TYPE, MAIN_STEREOSCOPIC_PICTURE_ASSET_TYPE, MAIN_SOUND_ASSET_TYPE, MAIN_SUBTITLE_ASSET_TYPE ]
-  MIMETYPE_MXF = "application/mxf"
-  MIMETYPE_XML = "text/xml"
-  MIMETYPE_TTF = "application/x-font-ttf"
     
   class DCPCommonInfo
     attr_reader :issuer, :creator, :annotation, :sign
@@ -103,15 +96,15 @@ module DCP
     def initialize( asset )
       super(asset)
       @asset_meta = MXF::MXF_Metadata.new( asset ).hash
-      @id =  @asset_meta[ MXF::MXF_KEYS_ASSETUUID ]
+      @id =  @asset_meta[ CinemaslidesCommon::MXF_KEYS_ASSETUUID ]
       @size = File.size(asset)
-      @intrinsic_duration = @asset_meta[ MXF::MXF_KEYS_CONTAINER_DURATION ]
+      @intrinsic_duration = @asset_meta[ CinemaslidesCommon::MXF_KEYS_CONTAINER_DURATION ]
       @entry_point = 0
-      @duration = @asset_meta[ MXF::MXF_KEYS_CONTAINER_DURATION ]
-      @stereoscopic =  @asset_meta.has_key?( MXF::MXF_KEYS_STEREOSCOPIC )
+      @duration = @asset_meta[ CinemaslidesCommon::MXF_KEYS_CONTAINER_DURATION ]
+      @stereoscopic =  @asset_meta.has_key?( CinemaslidesCommon::MXF_KEYS_STEREOSCOPIC )
       @asset_hash = asdcp_digest( asset )
-      if @asset_meta.has_key?( MXF::MXF_KEYS_CRYPTOGRAPHIC_KEY_ID )
-	@key_id = @asset_meta[ MXF::MXF_KEYS_CRYPTOGRAPHIC_KEY_ID ]
+      if @asset_meta.has_key?( CinemaslidesCommon::MXF_KEYS_CRYPTOGRAPHIC_KEY_ID )
+	@key_id = @asset_meta[ CinemaslidesCommon::MXF_KEYS_CRYPTOGRAPHIC_KEY_ID ]
 	@encrypted = TRUE
       else
 	@encrypted = FALSE
@@ -123,7 +116,7 @@ module DCP
     attr_reader :edit_rate
     def initialize( asset, dcp_functions )
       super(asset)
-      @edit_rate =  @asset_meta[ MXF::MXF_KEYS_EDIT_RATE ].to_s.gsub( '/', ' ' )
+      @edit_rate =  @asset_meta[ CinemaslidesCommon::MXF_KEYS_EDIT_RATE ].to_s.gsub( '/', ' ' )
       @mimetype = dcp_functions.audio_mimetype
     end # def 
   end # class
@@ -132,8 +125,8 @@ module DCP
     attr_reader :edit_rate, :frame_rate, :screen_aspect_ratio
     def initialize( asset, dcp_functions, dimensions )
       super( asset )
-      @edit_rate =  @asset_meta[ MXF::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' )
-      @frame_rate = @asset_meta[ MXF::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' ) # FIXME SampleRate?
+      @edit_rate =  @asset_meta[ CinemaslidesCommon::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' )
+      @frame_rate = @asset_meta[ CinemaslidesCommon::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' ) # FIXME SampleRate?
       # get screen_aspect_ratio not from MXF metadata, because asdcp-lib delivers
       # "wrong" values for mpeg2
       @screen_aspect_ratio =  dcp_functions.get_screen_aspect_ratio(dimensions)
@@ -143,7 +136,7 @@ module DCP
             
   class DCPReel
     attr_reader :image_mxf, :audio_mxf, :subtitle_xml, :image_asset, :audio_asset, :subtitle_asset
-    def initialize( image_asset, audio_asset, subtitle_asset = nil )
+    def initialize( image_asset, audio_asset = nil, subtitle_asset = nil )
       @image_asset = image_asset
       @audio_asset = audio_asset
       @subtitle_asset = subtitle_asset
@@ -206,7 +199,7 @@ module DCP
       @packing_list << DCPPKLAsset.create_asset( 
 	DCP::cpl_file( @dcpdir, cpl_uuid ),
 	cpl_uuid, 
-	MIMETYPE_XML,
+	CinemaslidesCommon::MIMETYPE_XML,
 	asdcp_digest_string( cpl.xml ), 
 	cpl.xml.length )
     end # def 
@@ -298,7 +291,7 @@ module DCP
       @pkl_dcp_asset = DCPAsset.create_asset( 
 	DCP::pkl_file( @dcpdir, pkl_uuid ),
 	pkl_uuid, 
-	MIMETYPE_XML, 
+	CinemaslidesCommon::MIMETYPE_XML, 
 	asdcp_digest_string( pkl.xml ), 
 	pkl.xml.length, 
 	packinglist = TRUE )

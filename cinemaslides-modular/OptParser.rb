@@ -2,48 +2,7 @@ module OptParser
 
   require 'ShellCommands'
   require 'Certificates'
-  
-  OUTPUT_TYPE_CHOICE_PREVIEW = 'preview'
-  OUTPUT_TYPE_CHOICE_FULLPREVIEW = 'fullpreview'
-  OUTPUT_TYPE_CHOICE_DCP = 'dcp' 
-  OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM = 'smpte-dcp' 
-  OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM = 'mxf-interop-dcp' 
-  OUTPUT_TYPE_CHOICE_NO_DCP_NORM = 'none-dcp' 
-  OUTPUT_TYPE_CHOICE_KDM = 'kdm' 
-  ENCODER_CHOICE_OJ_TM = 'openjpeg-tm'
-  ENCODER_CHOICE_OJ = 'openjpeg'
-  ENCODER_CHOICE_KAKADU = 'kakadu'
-  TRANSITION_CHOICE_CUT = 'cut'
-  TRANSITION_CHOICE_FADE = 'fade'
-  TRANSITION_CHOICE_CROSSFADE = 'crossfade'
-  INPUT_TYPE_CHOICE_SLIDE = 'slideshow'
-  INPUT_TYPE_CHOICE_AV = 'avcontainer'
-  CONTAINER_SIZE_2K = '2k'
-  CONTAINER_SIZE_4K = '4k'
-  ASPECT_CHOICE_FLAT = 'flat'
-  ASPECT_CHOICE_SCOPE = 'scope'
-  ASPECT_CHOICE_HD = 'hd'
-  ASPECT_CHOICE_CUSTOM_PREFIX = 'Custom aspect ratio:'
-  ASPECT_CHOICES = [ASPECT_CHOICE_FLAT, ASPECT_CHOICE_SCOPE, ASPECT_CHOICE_HD]
-  SAMPLE_RATE_CHOICE_48000 = '48000'
-  SAMPLE_RATE_CHOICE_48K   = '48k'
-  SAMPLE_RATE_CHOICE_96000 = '96000'
-  SAMPLE_RATE_CHOICE_96K   = '96k'
-  DCP_KIND_FEATURE      = 'feature'
-  DCP_KIND_TRAILER      = 'trailer'
-  DCP_KIND_TEST         = 'test'
-  DCP_KIND_TEASER       = 'teaser'
-  DCP_KIND_RATING       = 'rating'
-  DCP_KIND_ADVERTISMENT = 'advertisement'
-  DCP_KIND_SHORT        = 'short'
-  DCP_KIND_TRANSITIONAL = 'transitional'
-  DCP_KIND_PSA          = 'psa'
-  DCP_KIND_POLICY       = 'policy'
-  DCP_TITLE = 'Cinemaslides test'
-  FPS_DCP_CHOICES = [ 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ]
-  FPS_ASDCP_CHOICES = [ 23.976, 24.0, 25.0, 30.0, 48.0, 50.0, 60.0 ] # 24000/1001 not DCI compliant but shows up in asdcplib. Why?
-  AUDIO_BPS_16 = '16'
-  AUDIO_BPS_24 = '24'
+  require 'CinemaslidesCommon'
   
   # FIXME further constants
   #  options.dcp_color_transform_matrix_choices = [ 'iturec709_to_xyz', 'srgb_to_xyz', '709', 'srgb', Regexp.new( '(\d+(\.\d+)?\s*){9,9}' ) ]
@@ -52,6 +11,7 @@ module OptParser
 
 # FIXME catch missing parameters, false options, typos etc.
 class Optparser
+  include CinemaslidesCommon
   def self.get_options
     @@options
   end
@@ -101,8 +61,8 @@ class Optparser
     options.keep = FALSE
     options.dont_check = FALSE
     options.dont_drop = FALSE
-    options.verbosity = Logger::VERBOSITY_CHOICE_INFO
-    options.verbosity_choices = [ Logger::VERBOSITY_CHOICE_QUIET, Logger::VERBOSITY_CHOICE_INFO, Logger::VERBOSITY_CHOICE_DEBUG ]
+    options.verbosity = VERBOSITY_CHOICE_INFO
+    options.verbosity_choices = [ VERBOSITY_CHOICE_QUIET,VERBOSITY_CHOICE_INFO, VERBOSITY_CHOICE_DEBUG ]
     options.transition_and_timing = Array.new
     options.transition_and_timing_choices = [   TRANSITION_CHOICE_CUT, TRANSITION_CHOICE_FADE, TRANSITION_CHOICE_CROSSFADE ]
     options.transition_and_timing << TRANSITION_CHOICE_CUT
@@ -287,7 +247,7 @@ BANNER
       opts.on( '--target <certificate>', String, 'KDM mode: Path to the recipient device certificate' ) do |p|
         options.kdm_target = p
       end
-      opts.on( '-v', '--verbosity level', String, "Use one of #{ pretty_print_choices( options.verbosity_choices ) } (Default: #{ Logger::VERBOSITY_CHOICE_INFO })" ) do |p|
+      opts.on( '-v', '--verbosity level', String, "Use one of #{ pretty_print_choices( options.verbosity_choices ) } (Default: #{ VERBOSITY_CHOICE_INFO })" ) do |p|
         if options.verbosity_choices.include?( p )
           options.verbosity = p
         else
