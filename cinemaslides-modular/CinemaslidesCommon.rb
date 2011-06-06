@@ -109,7 +109,11 @@ module CinemaslidesCommon
   MXF_KEYS_STEREOSCOPIC         = 'File essence type is JPEG 2000 stereoscopic pictures.'
   MXF_KEYS_STOREDWIDTH          = 'StoredWidth'
   MXF_KEYS_STOREDHEIGHT         = 'StoredHeight'
+  MXF_AUDIO_FILE_PREFIX         = 'pcm'
 # from MXF  
+  
+  MAIN_STEREOSCOPIC_NAMESPACE   = "msp-cpl"
+  MAIN_STEREOSCOPIC_PICTURE_TAG = "MainStereoscopicPicture"
 
   # calculate indices of array source for multithreading
   # so that  source can be divided into equal parts and be

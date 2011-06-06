@@ -125,7 +125,7 @@ module DCP
     attr_reader :edit_rate, :frame_rate, :screen_aspect_ratio
     def initialize( asset, dcp_functions, dimensions )
       super( asset )
-      @edit_rate =  @asset_meta[ CinemaslidesCommon::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' )
+      @edit_rate =  (@asset_meta.has_key?(CinemaslidesCommon::MXF_KEYS_EDIT_RATE) ? @asset_meta[ CinemaslidesCommon::MXF_KEYS_EDIT_RATE ]  : @asset_meta[ CinemaslidesCommon::MXF_KEYS_SAMPLE_RATE ]).to_s.gsub( '/', ' ' )
       @frame_rate = @asset_meta[ CinemaslidesCommon::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' ) # FIXME SampleRate?
       # get screen_aspect_ratio not from MXF metadata, because asdcp-lib delivers
       # "wrong" values for mpeg2
@@ -505,7 +505,9 @@ module DCP
 	                # and duration
 	                # see also the fixme's below
 		  if image_asset.stereoscopic
-		    xml.MainStereoscopicPicture_( 'xmlns:msp-cpl' => @dcp_functions.cpl_3d_ns ) {
+	            # xml[ 'msp_cpl' ].MainStereoscopicPicture_ does not work here
+	            # Solution see under 'def xml'
+		    xml.MainStereoscopicPicture_( "xmlns:#{CinemaslidesCommon::MAIN_STEREOSCOPIC_NAMESPACE}" => @dcp_functions.cpl_3d_ns ) {
 		      mainpicture_fragment(image_asset, xml)                                                                                                      
 		    } # MainStereoscopicPicture
 		  else
@@ -546,7 +548,9 @@ module DCP
     end # initialize
 
     def xml
-      return @builder.to_xml( :indent => 2 )
+      # XXX xml[ 'msp_cpl' ].MainStereoscopicPicture_( "xmlns:#{CinemaslidesCommon::MAIN_STEREOSCOPIC_NAMESPACE}" => @dcp_functions.cpl_3d_ns )
+      # does not work. Therefore this dirty hack.
+      return @builder.to_xml( :indent => 2 ).gsub( CinemaslidesCommon::MAIN_STEREOSCOPIC_PICTURE_TAG, "#{CinemaslidesCommon::MAIN_STEREOSCOPIC_NAMESPACE}:#{CinemaslidesCommon::MAIN_STEREOSCOPIC_PICTURE_TAG}" )
     end # def 
     
     def check_reels

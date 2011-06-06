@@ -115,7 +115,7 @@ module OutputType
   end # KDMOutputType
   
   class AudioVideoOutputType < OutputType
-    attr_reader :dimensions, :workdir, :conformdir, :dcp_image_sequence_name, :fps, :thumbsdir, :assetsdir, :assetsdir_audio, :keysdir, :compress_parameter, :depth_parameter, :thumbs_dimensions, :jpeg2000_codec, :size, :dcp_wrap_stereoscopic
+    attr_reader :dimensions, :workdir, :fps, :thumbsdir, :assetsdir, :assetsdir_audio, :keysdir, :compress_parameter, :depth_parameter, :thumbs_dimensions, :jpeg2000_codec, :size, :dcp_wrap_stereoscopic, :three_D
     def initialize(mandatory, dcp_functions)
       super(mandatory, dcp_functions)
       @dimensions = width_x_height
@@ -124,6 +124,7 @@ module OutputType
       @size = @options.size
       @fps = @options.fps
       @dcp_wrap_stereoscopic = @options.dcp_wrap_stereoscopic
+      @three_D = @options.three_D
     end
 
     # TODO we should probably feed already "create_output_type" with a list of DCP::DCPAsset elements.
@@ -132,7 +133,8 @@ module OutputType
     def create_output_type( source, source_audio, signature_context)
       create_output_type2( source, source_audio, signature_context)
       final_report(Final_report_context.new(
-	@image_sequence.n_sequence_frames, @fps, @options.transition_and_timing, @options.keep, @image_sequence.framecount,  source, @workdir ))
+	@image_sequence.n_sequence_frames, @fps, @options.transition_and_timing, @options.keep, @image_sequence.framecount,  
+                                            @options.three_D ? source[0] : source, @workdir ))
       cleanup_workdir( @options.keep )
       done_message
     end
@@ -147,7 +149,7 @@ module OutputType
     def create_output_type2 (source, source_audio, signature_context)
       setup_output_directories(source.empty?, source_audio.empty?)
       @image_sequence = ImageSequence.const_get(image_sequence_classnames[@options.transition_and_timing.first]).new(
-	source, 
+	@options.three_D ? source[0] : source, 
 	output_type_obj = self,
 	output_format   = @options.output_format, 
 	resize          = @options.resize,
@@ -157,7 +159,23 @@ module OutputType
 	fade_in_time    = @options.fade_in_time,
 	duration        = @options.duration,
 	fade_out_time   = @options.fade_out_time, 
-	crossfade_time  = @options.crossfade_time) 
+	crossfade_time  = @options.crossfade_time,
+	conformdir 	= @options.three_D ? @conformdir_l : @conformdir) 
+      if @options.three_D
+	@image_sequence_r = ImageSequence.const_get(image_sequence_classnames[@options.transition_and_timing.first]).new(
+	  source[1], 
+	  output_type_obj = self,
+	  output_format   = @options.output_format, 
+	  resize          = @options.resize,
+	  fps             = @fps,
+	  black_leader    = @options.black_leader,
+	  black_tail      = @options.black_tail,
+	  fade_in_time    = @options.fade_in_time,
+	  duration        = @options.duration,
+	  fade_out_time   = @options.fade_out_time, 
+	  crossfade_time  = @options.crossfade_time,
+	  conformdir 	= @conformdir_r) 
+      end
       @audio_sequence = AudioSequence::AudioSequence.new(
 	source_audio,
 	image_sequence   = @image_sequence,
@@ -170,7 +188,7 @@ module OutputType
 	)
       display_summary(
 	Summary_context.new(
-	      source,
+	      @options.three_D ? source[0] : source,
 	      n_sequence_frames = @image_sequence.n_sequence_frames,
 	      signer_cert_obj = signature_context.signer_cert_obj
 	))  
@@ -194,11 +212,24 @@ module OutputType
       end
 
       Dir.mkdir( @workdir ) unless File.exists?( @workdir )
-      Dir.mkdir( @conformdir )
-      t2 = Thread.new do      
-	@image_sequence.create_image_sequence
+      if @options.three_D
+	Dir.mkdir( @conformdir_l )
+	Dir.mkdir( @conformdir_r )
+	t2 = Thread.new do      
+	  @image_sequence.create_image_sequence
+	end
+	t1.join(); t2.join();
+	t3 = Thread.new do      
+	  @image_sequence_r.create_image_sequence
+	end
+	t3.join()
+      else
+	Dir.mkdir( @conformdir )
+	t2 = Thread.new do      
+	  @image_sequence.create_image_sequence
+	end
+	t1.join(); t2.join();
       end
-      t1.join(); t2.join();
       
       ###
      
@@ -211,7 +242,11 @@ module OutputType
     def setup_output_directories(source_empty, source_audio_empty)
       @workdir = File.join( @cinemaslidesdir, "#{ File.basename( $0 ) }_#{ get_timestamp }_#{ @options.output_type }" )
       @conformdir = File.join( @workdir, 'conform' )
+      @conformdir_l = File.join( @workdir, 'conform_l' )
+      @conformdir_r = File.join( @workdir, 'conform_r' )
       @dcp_image_sequence_name = File.join( @workdir, @dcp_functions.dcp_image_sequence_basename )
+      @dcp_image_sequence_name_l = File.join( @workdir, 'l_' + @dcp_functions.dcp_image_sequence_basename )
+      @dcp_image_sequence_name_r = File.join( @workdir, 'r_' + @dcp_functions.dcp_image_sequence_basename  )
       @thumbsdir = File.join( @cinemaslidesdir, 'thumbs' )
       @assetsdir = File.join( @cinemaslidesdir, 'assets' )
       @assetsdir_audio = File.join( @cinemaslidesdir, 'assets-audio' )
@@ -434,19 +469,29 @@ module OutputType
     def create_output_type2( source, source_audio, signature_context)
       super( source, source_audio, signature_context)
       
-      # jpeg2000_conversion( @image_sequence )
-      @dcp_functions.convert_to_dcp_image_format( @image_sequence, self )
+      if @options.three_D
+	@dcp_functions.convert_to_dcp_image_format( @image_sequence, @conformdir_l, self,  @dcp_image_sequence_name_l )
+	@dcp_functions.convert_to_dcp_image_format( @image_sequence_r, @conformdir_r, self,  @dcp_image_sequence_name_r )
+      else
+	@dcp_functions.convert_to_dcp_image_format( @image_sequence, @conformdir, self,  @dcp_image_sequence_name)
+      end
       
       image_mxf_track = MXF::VideoMXFTrack.new(
 	dcpdir = @options.dcpdir, 
 	keysdir = @keysdir,
-	steroscopic = @options.dcp_wrap_stereoscopic, 
+	stereoscopic = ( @options.dcp_wrap_stereoscopic or  @options.three_D ), 
 	dcp_encrypt = @options.dcp_encrypt, 
 	fps = @fps,
 	dcp_functions = @dcp_functions)
       t1 = Thread.new do
 	@logger.info( 'Write image trackfile ...' )  
-	image_mxf_track.write_asdcp_track( file =  @dcp_image_sequence_name)
+	if @options.three_D
+	  image_mxf_track.write_asdcp_track( [@dcp_image_sequence_name_l, @dcp_image_sequence_name_r] )
+	elsif @options.dcp_wrap_stereoscopic
+	  image_mxf_track.write_asdcp_track( [@dcp_image_sequence_name, @dcp_image_sequence_name] )
+	else
+	  image_mxf_track.write_asdcp_track( file =  @dcp_image_sequence_name)
+	end
 	@logger.debug( "Image trackfile UUID: #{ image_mxf_track.mxf_uuid }" )
       end
       
@@ -534,7 +579,7 @@ module OutputType
     end
     
     def display_summary (summary_context)
-      @logger.info( "Creating#{ @options.sign ? ' signed' : '' }#{ @options.dcp_encrypt ? ' and encrypted' : '' }#{ @options.dcp_wrap_stereoscopic ? ' 3D' : ' 2D' } #{ @options.size.upcase } DCP (#{ @options.aspect } #{ @dimensions } @ #{ @fps } fps). Encoder: #{ @options.jpeg2000_codec }" )
+      @logger.info( "Creating#{ @options.sign ? ' signed' : '' }#{ @options.dcp_encrypt ? ' and encrypted' : '' }#{ ( @options.dcp_wrap_stereoscopic or @options.three_D ) ? ' 3D' : ' 2D' } #{ @options.size.upcase } DCP (#{ @options.aspect } #{ @dimensions } @ #{ @fps } fps). Encoder: #{ @options.jpeg2000_codec }" )
       @logger.info( "Number of images: #{ summary_context.source.size }" )
       @logger.info( "Transition specs: #{ @options.transition_and_timing.join( ',' ) }" )
       @logger.info( "Projected length: #{ hours_minutes_seconds_verbose( summary_context.n_sequence_frames / @fps ) }" )
@@ -555,7 +600,7 @@ module OutputType
     end
     
     def cleanup_workdir(keep)
-      super(keep, [ @conformdir, @dcp_image_sequence_name, @workdir ]  )
+      super(keep, [ @conformdir, @conformdir_l, @conformdir_r, @dcp_image_sequence_name, @dcp_image_sequence_name_l, @dcp_image_sequence_name_r, @workdir ]  )
     end
     
     def done_message

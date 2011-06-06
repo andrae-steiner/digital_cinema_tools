@@ -269,7 +269,20 @@ CINEMASLIDES_COMMANDLINE =  commandline
 @logger = Logger::Logger.instance
 @logger.set_prefix_verbosity( prefix = '*', @options.verbosity )
 
-  
+if @options.three_D and ARGV != nil and ARGV.size > 0
+  @logger.info("Files have to be specified with the '--3d-left' and '--3d-right' option.")
+  @logger.info("The following filed would be ignored. #{ARGV.join(", ")}.")
+  @logger.info("Exiting...")
+  exit
+end
+
+if (!@options.three_D and ( ARGV == nil or ARGV.size == 0 ) )
+  @logger.info("No input files: exiting")
+  OptParser::Optparser.parse(["-h"])
+  exit
+end
+
+exit if @options.invalid_options_found
 
 @logger.info( "#{ AppName } #{ AppVersion }" )
 # cinemaslides requires ruby 1.8.7 and will not work with > 1.9, yet.
@@ -317,25 +330,65 @@ exit if !OptParser::Optparser.aspect_option_ok?
 exit if !OptParser::Optparser.size_option_ok?
 exit if !OptParser::Optparser.dcp_related_options_ok?
 exit if !OptParser::Optparser.set_and_check_transition_and_timing_option?
+exit if !OptParser::Optparser.three_d_related_options_ok?
 exit if !@output_type_obj.all_mandatory_tools_available?
 OptParser::Optparser.set_and_check_fps_option
 OptParser::Optparser.set_size
 OptParser::Optparser.set_black_options
 OptParser::Optparser.set_output_format_option
 
+@image_sequence_class = ImageSequence.const_get(image_sequence_classnames[@options.transition_and_timing.first])
+
 @input_type = InputType.const_get(input_type_classnames[@options.input_type]).new(
-  source = ARGV,
+  source = @options.three_D ? @options.three_D_left : ARGV,
   dont_check = @options.dont_check,
   dont_drop = @options.dont_check,
-  transition_and_timing = @options.transition_and_timing)
+  @image_sequence_class, 
+  audio_only = FALSE)
 
-@source, @source_audio, no_decode_delegate, files_ok  = @input_type.seperate_and_check_files
+@source_left, @source_audio, no_decode_delegate, files_ok  = @input_type.seperate_and_check_files
 exit if !files_ok
+if @options.three_D and  @source_audio != nil and  @source_audio.size > 0
+   @logger.info( "Only image files allowed with'--3d-left' and '--3d-right' ")
+   exit
+end
 
+if @options.three_D
+  @input_type = InputType.const_get(input_type_classnames[@options.input_type]).new(
+    source = @options.three_D_right,
+    dont_check = @options.dont_check,
+    dont_drop = @options.dont_check,
+    @image_sequence_class, 
+    audio_only = FALSE)
+
+
+  @source_right, @source_audio_dummy, no_decode_delegate, files_ok  = @input_type.seperate_and_check_files
+  exit if !files_ok
+  if @options.three_D and  @source_audio_dummy != nil and  @source_audio_dummy.size > 0
+    @logger.info( "Only image files allowed with'--3d-left' and '--3d-right' ")
+    exit
+  end
+  
+  @input_type = InputType.const_get(input_type_classnames[@options.input_type]).new(
+    source = @options.three_D_audio,
+    dont_check = @options.dont_check,
+    dont_drop = @options.dont_check,
+    @image_sequence_class, 
+    audio_only = TRUE)
+
+
+  @source_dummy, @source_audio, no_decode_delegate, files_ok  = @input_type.seperate_and_check_files
+  exit if !files_ok
+  if @options.three_D and  @source_dummy != nil and  @source_dummy.size > 0
+    @logger.info( "Only audio files allowed with'--3d-audio' ")
+    exit
+  end
+
+end
 
 # here a preview or dcp is created depending on the class loaded
 @output_type_obj.create_output_type( 
-  source        = @source, 
+  source        = @options.three_D ? [@source_left, @source_right] : @source_left,
   source_audio  = @source_audio, 
   signature_context)
 
@@ -352,6 +405,7 @@ FIXME source filenames with spaces:
 
 FIXME certificate handling and KDM mode, although working, need re-design to allow for more flexibility
 FIXME output some basic help message when app is called without any args. as it is app merely utters 'No image files specified'
+      somehow done
 done FIXME calculates message digest twice when building an encrypted package (for CPL and PKL)
 FIXME fps and --wrap-stereoscopic not in total harmony yet
 FIXME generic readme/report output
@@ -374,7 +428,7 @@ FEATURE look at resize/don't resize thresholds in order to do the "right" thing 
 FEATURE look at polynomial-constrained fades
 FEATURE option to request linear/s-curved/... transitions for comparison (well, for showing off, basically, how nice the sigmoid function works for transitions)
 FEATURE sparse assets via minimum mxfs and playlists
-FEATURE 3D
+done FEATURE 3D
 FEATURE custom preview sizes
 FEATURE black/mono pause between slides
 FEATURE transition times and duration are global. make them file specific

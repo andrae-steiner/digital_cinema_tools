@@ -42,7 +42,7 @@ module ImageSequence
     attr_reader :asset_functions, :output_format, :fps, :conformdir
     def initialize (source, output_type_obj, output_format, resize,
                     fps, black_leader, black_tail, fade_in_time, duration, fade_out_time, 
-                    crossfade_time)
+                    crossfade_time, conformdir)
       @imagecount = 0
       @conform_mutexes = Hash.new
       @imagecount_mutex = Mutex.new
@@ -58,10 +58,10 @@ module ImageSequence
       @duration = duration
       @fade_out_time = fade_out_time
       @crossfade_time = crossfade_time
-      @conformdir =  output_type_obj.conformdir
-      @file_sequence_trailer = FileSequence.new(output_type_obj.conformdir, output_format, @fps, 
-                                                starting_frame = n_sequence_frames - @black_leader * @fps)
+      @conformdir =  conformdir
       @asset_functions = Asset::ImageAssetFunctions.new(output_type_obj, resize)
+      @file_sequence_trailer = FileSequence.new(@conformdir, output_format, @fps, 
+                                                starting_frame = n_sequence_frames - @black_leader * @fps)
     end
     
     def self.n_of_images_ok?(source)
@@ -73,7 +73,6 @@ module ImageSequence
     end
         
     def n_sequence_frames
-      # FIXME raise some exception about an undefined method
       raise NotImplementedError, "Do not instanciate this abstract class: ImageSequence"
     end
           
@@ -82,7 +81,7 @@ module ImageSequence
       n_sequence_frames - ( ( @black_leader + @black_tail ) * @fps )
     end
     
-    def create_image_sequence
+    def create_image_sequence 
       create_leader(FileSequence.new(@conformdir, @output_format, @fps, 
                                                 starting_frame = 0))
       
@@ -138,7 +137,6 @@ module ImageSequence
     end
     
     def create_transitions
-      # FIXME raise some exception about an undefined method
       raise NotImplementedError, "Do not instanciate this abstract class: ImageSequence"
     end
     
@@ -254,7 +252,7 @@ module ImageSequence
     end
 
     def full_level( image, duration, file_sequence )
-      return if (duration < 1)
+      return if (duration < (1.0/@fps.to_f) )
       @logger.info( "--- Full level #{ imagecount_info( image ) }" )
       level = 0
       file = file_sequence.next_file
@@ -317,18 +315,7 @@ module ImageSequence
 	end
       }
     end
-    
-    def create_transitions_single_thread
-      # Process all images
-      file_sequence = FileSequence.new(@conformdir, @output_format, @fps, 
-                                                starting_frame = ( @black_leader ) * @fps)
-      @source.each_index do |index|
-	incr_imagecount()
-	image = conform( @source[ index  ] )
-	fade_in_hold_fade_out( image, @fade_in_time, @duration, @fade_out_time, file_sequence )
-      end
-    end
-    
+        
     def n_sequence_frames
       ( ( @black_leader + @black_tail ) + @source.length * ( @fade_in_time + @duration + @fade_out_time ) ) * @fps
     end
@@ -368,26 +355,6 @@ module ImageSequence
 	    full_level( keeper,  @duration, file_sequence )
 	  end
       }
-    end
-
-    
-    def create_transitions_single_thread
-      # Process all images
-
-      file_sequence = FileSequence.new(@conformdir, @output_format, @fps, 
-                                                starting_frame = ( @black_leader ) * @fps)
-      keeper = conform( @source[ 0 ] ) # keep a conform for the next crossfade (2nd will be 1st then, don't conform again)
-      (@source.size - 1).times do |index|
-	incr_imagecount()
-	image1 = keeper
-	image2 = conform( @source[ index + 1 ] )
-	keeper = image2
-	full_level( image1,  @duration, file_sequence )
-	crossfade( image1, image2,  @crossfade_time, file_sequence )
-      end
-      # last image
-      full_level( keeper,  @duration, file_sequence )
-            
     end
         
     def n_sequence_frames

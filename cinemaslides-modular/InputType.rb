@@ -34,7 +34,7 @@ module InputType
   # The concept of assets should also be chosen here, that means an image sequence 
   # should be created only once
   class AVContainerInputType < InputType
-    def initialize (avfile, dont_check, dont_drop, transition_and_timing)
+    def initialize (avfile, dont_check, dont_drop, audio_only, image_sequence_class)
       @logger = Logger::Logger.instance
       @avfile = avfile
       @cinemaslidesdir = File.get_cinemaslidesdir
@@ -42,6 +42,9 @@ module InputType
       @options.fade_in_time = 0
       @options.duration = 1.0/24.0
       @options.fade_out_time = 0
+      @options.transition_and_timing = Array.new
+      @options.transition_and_timing << CinemaslidesCommon::TRANSITION_CHOICE_CUT
+      @options.transition_and_timing << @options.duration # duration
     end
     def seperate_and_check_files
       if @avfile.empty?
@@ -52,12 +55,12 @@ module InputType
 #      @image_output_dir = "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00"
       
       Dir.mkdir( @image_output_dir )
-      @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_" +AudioSequence::CinemaslidesCommon::FILE_SUFFIX_PCM)
+      @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_" + CinemaslidesCommon::FILE_SUFFIX_PCM)
 #      @audio_from_av = "/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"
       # TODO create a method in ShellCommands for this
       # FIXME do not hard code fps
-      `ffmpeg -y -i "#{ @avfile }" -an -r 24   -qscale 1 -qmin 1 -intra -b 50000k #{File.join(@image_output_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+".png")}`
-      `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 24 -ar 48000 #{ @audio_from_av }`
+      `ffmpeg -y -i "#{ @avfile }" -an -r 24   -qscale 1 -qmin 1 -intra -t 0:0:10 -pix_fmt yuv420p -b 50000k #{File.join(@image_output_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+".jpg")}`
+      `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 24 -t 0:0:10 -ar 48000 #{ @audio_from_av }`
       
 #      return Dir.glob( "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00/*" ).sort,  ["/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"], nil, TRUE
       
@@ -68,11 +71,12 @@ module InputType
 
   class SlideshowInputType < InputType
     
-    def initialize( source, dont_check, dont_drop, transition_and_timing )
+    def initialize( source, dont_check, dont_drop, audio_only, image_sequence_class  )
       super( source )
       @dont_check = dont_check
       @dont_drop = dont_drop
-      @transition_and_timing = transition_and_timing
+      @audio_only = audio_only
+      @image_sequence_class = image_sequence_class
     end
         
     def seperate_and_check_files 
@@ -130,14 +134,17 @@ module InputType
 	elsif not_readable_or_regular.size == 0 and source_tmp.size > 0
 	  @logger.debug( "All files readable and regular files" )
 	end
+	
 	if no_decode_delegate.size > 0
 	  drops = TRUE
 	  @logger.debug( "No decode delegates for #{ no_decode_delegate.join( ', ' ) }" )
 	end
-	if source_tmp.length == 0
+	
+	if source_tmp.length == 0 and !@audio_only
 	  @logger.info( drops  ? "No useable image files" : "No image files specified")
 	  return @source, source_audio, no_decode_delegate, FALSE
 	end
+	
 	if drops
 	  if @dont_drop
 	    return @source, source_audio, no_decode_delegate, FALSE
@@ -148,7 +155,7 @@ module InputType
 	@source = source_tmp.dup
       end
       
-      if !ImageSequence.const_get(image_sequence_classnames[@transition_and_timing.first]).n_of_images_ok?(@source)
+      if !@audio_only and !@image_sequence_class.n_of_images_ok?(@source)
 	return @source, source_audio, no_decode_delegate, FALSE
       end
       

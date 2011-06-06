@@ -10,6 +10,7 @@ module OptParser
 
 
 # FIXME catch missing parameters, false options, typos etc.
+# FIXME false options done
 class Optparser
   include CinemaslidesCommon
   def self.get_options
@@ -18,6 +19,7 @@ class Optparser
   def self.parse(args)
     # defaults
     options = OpenStruct.new
+    options.invalid_options_found = FALSE
     options.output_type = OUTPUT_TYPE_CHOICE_PREVIEW
     options.dcp_norm = OUTPUT_TYPE_CHOICE_NO_DCP_NORM
     options.output_type_choices = [ OUTPUT_TYPE_CHOICE_PREVIEW, OUTPUT_TYPE_CHOICE_FULLPREVIEW, OUTPUT_TYPE_CHOICE_DCP, OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM, OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM ]
@@ -47,6 +49,12 @@ class Optparser
     options.dcp_kind_choices = [   DCP_KIND_FEATURE, DCP_KIND_TRAILER, DCP_KIND_TEST, DCP_KIND_TEASER, DCP_KIND_RATING, 
                                    DCP_KIND_ADVERTISMENT, DCP_KIND_SHORT, DCP_KIND_TRANSITIONAL, DCP_KIND_PSA, DCP_KIND_POLICY ]
     options.dcp_wrap_stereoscopic = FALSE
+    
+    options.three_D = FALSE
+    options.three_D_left = Array.new
+    options.three_D_right = Array.new
+    options.three_D_audio = Array.new
+    
     options.dcp_user_output_path = nil
     options.dcp_color_transform_matrix = 'srgb_to_xyz'
     options.dcp_color_transform_matrix_choices = [ 'iturec709_to_xyz', 'srgb_to_xyz', '709', 'srgb', Regexp.new( '(\d+(\.\d+)?\s*){9,9}' ) ]
@@ -82,7 +90,7 @@ class Optparser
       opts.banner = <<BANNER
 #{ AppName } #{ AppVersion } #{ ENV[ 'CINEMASLIDESDIR' ].nil? ? "\nExport CINEMASLIDESDIR to point to desired work directory needed for temporary files, thumbnails, asset depot, DCPs (Default: HOME/cinemaslidesdir)" : "\nCINEMASLIDESDIR is set (#{ ENV[ 'CINEMASLIDESDIR' ] })" } 
  
-Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [--n_threads <threads>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
+Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [--n-threads <threads>] [--3d-left <x,y,z>] [--3d-right <x,y,z>] [--3d-audio <x,y,z>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
 
 BANNER
 
@@ -102,9 +110,25 @@ BANNER
         end
       end
       
-      opts.on( '--n_threads <threads>', Integer, 'Number of threads for creating image sequence and encoding. not yet for checking  (Default: 8)' ) do |p|
+      opts.on( '--n-threads threads', Integer, 'Number of threads for creating image sequence and encoding. not yet for checking  (Default: 8)' ) do |p|
         options.n_threads = p if (p > 0)
       end
+            
+      opts.on( '--3d-left x,y,z', Array, 'files for left eye of 3D dcp' ) do |p|
+        options.three_D_left = p 
+        options.three_D = TRUE
+      end
+      
+      opts.on( '--3d-right x,y,z', Array, 'files for right eye of 3D dcp' ) do |p|
+        options.three_D_right = p 
+        options.three_D = TRUE
+      end
+      
+      opts.on( '--3d-audio x,y,z', Array, 'files for audio of 3D dcp' ) do |p|
+        options.three_D_audio = p 
+        options.three_D = TRUE
+      end
+      
       
       opts.on( '--input-type type',  String, "Use one of #{ pretty_print_choices( options.input_type_choices ) } (Default: #{INPUT_TYPE_CHOICE_SLIDE}) ) (not yet fully implemented)" ) do |p|
         if options.input_type_choices.include?( p.downcase )
@@ -217,16 +241,16 @@ BANNER
 	options.sign = TRUE
       end
       
-      opts.on( '--ca-cert <ca_cert>', String, 'Root certificate of certificatechain for signing') do |p|
+      opts.on( '--ca-cert ca_cert', String, 'Root certificate of certificatechain for signing') do |p|
 	options.ca_cert = read_key_or_cert_from_file(p)
       end
-      opts.on( '--intermediate-cert <intermediate_cert>', String, 'Intermediate certificate of certificatechain for signing') do |p|
+      opts.on( '--intermediate-cert intermediate_cert', String, 'Intermediate certificate of certificatechain for signing') do |p|
 	options.intermediate_cert = read_key_or_cert_from_file(p)
       end
-      opts.on( '--signer-cert <signer_cert>', String, 'Signer certificate of certificatechain for signing') do |p|
+      opts.on( '--signer-cert signer_cert', String, 'Signer certificate of certificatechain for signing') do |p|
 	options.signer_cert = read_key_or_cert_from_file(p)
       end
-      opts.on( '--signer-key <signer_key>', String, 'Signer key  of certificatechain for signing') do |p|
+      opts.on( '--signer-key signer_key', String, 'Signer key  of certificatechain for signing') do |p|
 	options.signer_cert = read_key_or_cert_from_file(p)
       end
 
@@ -235,23 +259,23 @@ BANNER
         options.kdm = TRUE
 	options.output_type = OUTPUT_TYPE_CHOICE_KDM
       end
-      opts.on( '--cpl <file>', String, 'KDM mode: Specify CPL file' ) do |p|
+      opts.on( '--cpl file', String, 'KDM mode: Specify CPL file' ) do |p|
         options.kdm_cpl = p
       end
-      opts.on( '--start <days>', Integer, 'KDM mode: KDM validity starts <days> from now (Default: Now)' ) do |p|
+      opts.on( '--start days', Integer, 'KDM mode: KDM validity starts <days> from now (Default: Now)' ) do |p|
         options.kdm_start = p
       end
-      opts.on( '--end <days>', Integer, 'KDM mode: KDM validity ends <days> from now (Default: 4 weeks from now)' ) do |p|
+      opts.on( '--end days', Integer, 'KDM mode: KDM validity ends <days> from now (Default: 4 weeks from now)' ) do |p|
         options.kdm_end = p
       end
-      opts.on( '--target <certificate>', String, 'KDM mode: Path to the recipient device certificate' ) do |p|
+      opts.on( '--target certificate', String, 'KDM mode: Path to the recipient device certificate' ) do |p|
         options.kdm_target = p
       end
       opts.on( '-v', '--verbosity level', String, "Use one of #{ pretty_print_choices( options.verbosity_choices ) } (Default: #{ VERBOSITY_CHOICE_INFO })" ) do |p|
         if options.verbosity_choices.include?( p )
           options.verbosity = p
         else
-          options.verbosity = "info"
+          options.verbosity = VERBOSITY_CHOICE_INFO
         end
       end
       
@@ -319,8 +343,19 @@ EXAMPLES
       end
 
     end
-    opts.parse!(args)
     
+    parse_again = TRUE
+    while parse_again do
+      begin
+	opts.parse!(args)
+	parse_again = FALSE
+      rescue Exception => msg  
+	# display the system generated error message  
+	puts msg  
+	options.invalid_options_found = TRUE
+      end    
+    end
+        
     @@options = options
     options
   end # parse
@@ -391,7 +426,7 @@ EXAMPLES
   def self.dcp_related_options_ok?
     logger = Logger::Logger.instance
     # check dcp related @options
-    if @@options.output_type == "dcp"
+    if @@options.output_type == OUTPUT_TYPE_CHOICE_DCP
       unless @@options.jpeg2000_codec_choices.include?( @@options.jpeg2000_codec )
 	logger.critical( "Not a usable jpeg2000_codec: '#{ @@options.jpeg2000_codec }'" )
 	return FALSE
@@ -409,11 +444,44 @@ EXAMPLES
     end
     TRUE
   end
+  
+  def self.three_d_related_options_ok?
+    logger = Logger::Logger.instance
+    options_ok = TRUE
+    # check: wrap-stereoscopic has to be false
+    # check: output_type has to be OUTPUT_TYPE_CHOICE_DCP or  OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM
+    # check: dcp_norm has to be OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM
+    # TODO check: 3d left and right channel exist and have equal number of images 
+    #             ==> NOT SIMPLE, CAN THIS BE DONE ALREADY HERE
+    if @@options.three_D
+      if @@options.dcp_wrap_stereoscopic
+	logger.info( "Options '--wrap-stereoscopic' and '--three-d' cannot be set both." )
+	options_ok = FALSE
+      end
+      if @@options.dcp_norm == OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM 
+	logger.info( "With 3D the output_type has to be '#{OUTPUT_TYPE_CHOICE_DCP}' or '#{OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM}'" )
+	options_ok = FALSE
+      end
+      if @@options.three_D_left.size == 0 or @@options.three_D_right.size == 0
+	logger.info( "Both options '--3d-left' and '--3d-right' have to be specified with 3D. Take care of the syntax." )
+	options_ok = FALSE
+      end
+      if @@options.input_type == INPUT_TYPE_CHOICE_AV
+	logger.info( "Inputtype '#{INPUT_TYPE_CHOICE_AV} not allowed with '--three-d' " )
+	options_ok = FALSE
+      end
+    end
+    options_ok
+  end
 
   def self.set_and_check_fps_option
     logger = Logger::Logger.instance
-    if @@options.output_type == 'dcp' and @@options.dcp_wrap_stereoscopic and @@options.fps != 24
+    if @@options.output_type == OUTPUT_TYPE_CHOICE_DCP and @@options.dcp_wrap_stereoscopic and @@options.fps != 24
       logger.info( "Option '--wrap-stereoscopic' is set -> Setting fps to 24" )
+      @@options.fps = 24.0
+    end
+    if @@options.output_type == OUTPUT_TYPE_CHOICE_DCP and @@options.three_D and @@options.fps != 24
+      logger.info( "Option '--three-d' is set -> Setting fps to 24" )
       @@options.fps = 24.0
     end
   end
