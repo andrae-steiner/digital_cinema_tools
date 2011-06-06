@@ -337,7 +337,7 @@ EXAMPLES
         puts examples
         exit
       end
-      opts.on_tail( '-h', '--help', 'Display this screen' ) do
+      opts.on_tail( '-h', '--help', 'Display this screen' ) do	
         puts opts
         exit
       end
@@ -349,7 +349,7 @@ EXAMPLES
       begin
 	opts.parse!(args)
 	parse_again = FALSE
-      rescue Exception => msg  
+      rescue OptionParser::InvalidOption => msg  
 	# display the system generated error message  
 	puts msg  
 	options.invalid_options_found = TRUE
@@ -530,6 +530,7 @@ EXAMPLES
   
   def self.read_key_or_cert_from_file(p)
     logger = Logger::Logger.instance
+    logger.info("Beware. It is not checked if the certificates you specify are a valid Certificate chain.")
     if !File.exists?(p)
       logger.info("File #{ p } to read certificate or key from does not exist. Exiting.")
       exit

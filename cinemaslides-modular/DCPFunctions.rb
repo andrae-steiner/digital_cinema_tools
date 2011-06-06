@@ -92,7 +92,7 @@ module DCPFunctions
       "http://www.mpaa.org/2003-ratings"
     end
     def am_file_name( dir )
-      File.join( dir, 'ASSETMAP.xml' )
+      File.join( dir, 'ASSETMAP' )
     end
     def mxf_UL_value_option
       " "
@@ -195,7 +195,7 @@ module DCPFunctions
       "http://rcq.qc.ca/2003-ratings"
     end
     def am_file_name( dir )
-      File.join( dir, 'ASSETMAP' )
+      File.join( dir, 'ASSETMAP.xml' )
     end
     def mxf_UL_value_option
       " -L "

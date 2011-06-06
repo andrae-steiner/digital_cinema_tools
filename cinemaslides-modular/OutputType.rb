@@ -52,7 +52,7 @@ module OutputType
       @logger = Logger::Logger.instance
       @mandatory = mandatory
       @dcp_functions = dcp_functions
-      @cinemaslidesdir = File.get_cinemaslidesdir
+      @cinemaslidesdir = CSTools.get_cinemaslidesdir
     end  
     
     def all_mandatory_tools_available?
@@ -428,11 +428,11 @@ module OutputType
 	return FALSE
       end
       if @options.sign
-	mandatory << 'xmlsec1'
+	@mandatory << 'xmlsec1'
       end
       if @options.dcp_encrypt
-	mandatory << 'kmrandgen'
-	mandatory << 'xmlsec1'
+	@mandatory << 'kmrandgen'
+	@mandatory << 'xmlsec1'
       end
       available_mandatory, missing_mandatory = check_external( @mandatory )
       available_mandatory += available_codecs unless available_codecs.nil?
@@ -575,7 +575,7 @@ module OutputType
       # readme and report
       readme_file_name = @options.annotation.gsub( /[\\\/\&: ]/, '_' ) + '.readme'
       readme_file_path = File.join( @options.dcpdir, readme_file_name )
-      File.open( readme_file_path, 'w' ) { |f| f.write( CINEMASLIDES_COMMANDLINE + "\n" ) }
+      File.open( readme_file_path, 'w' ) { |f| f.write( CSTools.get_commandline + "\n" ) }
     end
     
     def display_summary (summary_context)

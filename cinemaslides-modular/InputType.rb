@@ -37,7 +37,7 @@ module InputType
     def initialize (avfile, dont_check, dont_drop, audio_only, image_sequence_class)
       @logger = Logger::Logger.instance
       @avfile = avfile
-      @cinemaslidesdir = File.get_cinemaslidesdir
+      @cinemaslidesdir = CSTools.get_cinemaslidesdir
       @options = OptParser::Optparser.get_options     
       @options.fade_in_time = 0
       @options.duration = 1.0/24.0
@@ -182,11 +182,11 @@ module InputType
       source_tmp = Array.new
       source.each do |element|
 	if File.exists?( element ) 
-	  if File.is_directory?( element )
+	  if CSTools.is_directory?( element )
 	    s2, nr2 = collect_files( Dir.glob( "#{ element }/*" ).sort )
 	    not_readable_or_regular << nr2
 	    source_tmp << s2
-	  elsif File.is_file?( element )
+	  elsif CSTools.is_file?( element )
 	    source_tmp << element
 	  else
 	    not_readable_or_regular << element

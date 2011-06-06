@@ -123,7 +123,7 @@ module KDM_Gen
 
       # check for key directory
       @keysdir = File.join( @output_type_obj.cinemaslidesdir, 'keys' )
-      if File.is_directory?( @keysdir )
+      if CSTools.is_directory?( @keysdir )
 	@logger.debug( "Content keystore at: #{ @keysdir }" )
       else
 	@logger.info( "No content keystore found (Looking for #{ @keysdir })" )
@@ -241,7 +241,7 @@ module KDM_Gen
 	kdm_no_go << 'No CPL'
       else
 	# Get CPL info
-	if File.is_file?( @kdm_cpl )
+	if CSTools.is_file?( @kdm_cpl )
 	  xml_obj = Nokogiri::XML( File.read( @kdm_cpl ) )
 	  xsd = Nokogiri::XML::Schema(File.read(CPL_XSD))
 	  if !xsd.valid?(xml_obj)
@@ -318,7 +318,7 @@ module KDM_Gen
 	@logger.info( "No target certificate specified. Use --target <certificate>" )
 	kdm_no_go << 'No target'
       else
-	if !File.is_directory?( @kdm_target )
+	if !CSTools.is_directory?( @kdm_target )
 	  begin
 	    recipient = Recipient.new( @kdm_target)
 		    

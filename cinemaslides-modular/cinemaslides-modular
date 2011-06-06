@@ -51,7 +51,10 @@ AppName = File.basename( $0 )
 #
 #
 
-
+# Thanks Wolfgang for this one
+require 'pathname'
+libdir = File.dirname( Pathname.new( $0 ).realpath.to_s )
+$LOAD_PATH.unshift( libdir ) unless $LOAD_PATH.include?( libdir )
 
 require 'fileutils'
 if RUBY_VERSION <= '1.9'
@@ -86,7 +89,7 @@ require 'CinemaslidesCommon'
 
 include TimeDateUtils
 
-class File
+class CSTools
   def self.is_directory?( file)
     File.exists?( file ) and File.ftype( file ) == 'directory'
   end
@@ -111,6 +114,20 @@ class File
   end
   def self.get_cinemaslidesdir
     @cinemaslidesdir
+  end
+  def self.set_commandline
+    commandline = File.basename( $0 )
+    ARGV.each do |arg|
+      if arg =~ /.+\s.+/
+	commandline += ' ' + '"' + arg + '"'
+      else
+	commandline += ' ' + arg
+      end
+    end
+    @commandline =  commandline
+  end
+  def self.get_commandline
+    @commandline
   end
 end
 
@@ -251,18 +268,10 @@ include DCTools
 ####											####
 
 
-File.set_cinemaslidesdir
+CSTools.set_cinemaslidesdir
 
 # reconstruct original commandline for readme file
-commandline = File.basename( $0 )
-ARGV.each do |arg|
-  if arg =~ /.+\s.+/
-    commandline += ' ' + '"' + arg + '"'
-  else
-    commandline += ' ' + arg
-  end
-end
-CINEMASLIDES_COMMANDLINE =  commandline
+CSTools.set_commandline
 # destructive parse
 @options = OptParser::Optparser.parse(ARGV)
 
@@ -291,7 +300,7 @@ if RUBY_VERSION < '1.8.7' or RUBY_VERSION >= '1.9'
   @logger.info( "#{ AppName } requires ruby >= 1.8.7 and < 1.9. Your ruby version: #{ RUBY_VERSION }" )
   exit
 end
-@logger.debug( commandline )
+@logger.debug( CSTools.get_commandline )
 
 signature_context =  X509Certificate::X509CertificateChain.new(
 			      @options.ca_cert, 

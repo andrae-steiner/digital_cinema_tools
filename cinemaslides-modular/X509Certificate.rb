@@ -1,7 +1,5 @@
 module X509Certificate
-  
-  require 'Certificates'
-    
+      
 
 # FIXME expects an ordered certificate chain (pem format) for now:
 #
@@ -26,13 +24,13 @@ module X509Certificate
       # FIXME right now this is tightly coupled with make-dc-certificate-chain.rb's output.
       # FIXME hardcoded number and names of signer key, certificates and verified chain.
       # FIXME also there's an unholy mix of certificate files here and certificate objects there.
-      @signer_key = Certificates::SIGNERKEY
+      @signer_key = signer_key
 
       #------------------------
       @certchain_objs = Array.new
-      @certchain_objs << OpenSSL::X509::Certificate.new( Certificates::SIGNER_CERT ) <<
-			 OpenSSL::X509::Certificate.new( Certificates::INTERMEDIATE_CERT ) <<
-			 OpenSSL::X509::Certificate.new( Certificates::CA_CERT)
+      @certchain_objs << OpenSSL::X509::Certificate.new( signer_cert ) <<
+			 OpenSSL::X509::Certificate.new( intermediate_cert ) <<
+			 OpenSSL::X509::Certificate.new( ca_cert )
       @signer_cert_obj = @certchain_objs.first      
       @certs = @certchain_objs
       #------------------------
