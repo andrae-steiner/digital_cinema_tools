@@ -125,7 +125,7 @@ module DCP
     attr_reader :edit_rate, :frame_rate, :screen_aspect_ratio
     def initialize( asset, dcp_functions, dimensions )
       super( asset )
-      @edit_rate =  (@asset_meta.has_key?(CinemaslidesCommon::MXF_KEYS_EDIT_RATE) ? @asset_meta[ CinemaslidesCommon::MXF_KEYS_EDIT_RATE ]  : @asset_meta[ CinemaslidesCommon::MXF_KEYS_SAMPLE_RATE ]).to_s.gsub( '/', ' ' )
+      @edit_rate =  dcp_functions.get_dcp_editrate( @asset_meta )
       @frame_rate = @asset_meta[ CinemaslidesCommon::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' ) # FIXME SampleRate?
       # get screen_aspect_ratio not from MXF metadata, because asdcp-lib delivers
       # "wrong" values for mpeg2

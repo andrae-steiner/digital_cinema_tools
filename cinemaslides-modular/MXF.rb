@@ -48,7 +48,6 @@ module MXF
     def write_asdcp_track( file_par )
       opts_params_args = "#{ @dcp_functions.mxf_UL_value_option } #{ @dcp_encrypt ? '-e -k ' + @key + ' -j ' + @key_id : '-E' } -p #{ @fps } -a #{ @mxf_uuid } -c #{ @mxf_file_name } #{ file_par } "
       ShellCommands.asdcp_test_create_mxf( opts_params_args )
-      @logger.debug( "Thread #{Thread.current}: MXFTrack.write_asdcp_track stop " )
     end
     
     private 
@@ -71,12 +70,10 @@ module MXF
       super(dcp_functions.dcp_image_sequence_basename, CinemaslidesCommon::KEYTYPE_MDIK, dcpdir, keysdir, stereoscopic, dcp_encrypt, fps, dcp_functions)
     end
     def write_asdcp_track( file_s )
-      @logger.debug( "Thread #{Thread.current}: VideoMXFTrack.write_asdcp_track start " )
       super( @wrap_stereo_or_3D ? "-3 #{file_s[0]}  #{file_s[1]}" : file_s ) 
       if @wrap_stereo_or_3D
 	@logger.info( 'Wrap as stereoscopic essence or 3D' )
       end
-      @logger.debug( "Thread #{Thread.current}: VideoMXFTrack.write_asdcp_track stop " )
     end
   end
 

@@ -103,6 +103,9 @@ module DCPFunctions
     def content_version_fragment(content_version_id, content_version_label, xml )
       # nothing
     end
+    def get_dcp_editrate(asset_meta)
+       asset_meta[ CinemaslidesCommon::MXF_KEYS_SAMPLE_RATE ].to_s.gsub( '/', ' ' )
+    end
     def get_screen_aspect_ratio(dimension)      
       x, y = dimension.split( 'x' )
       (x.to_f / y.to_f).to_s[0..3]
@@ -209,6 +212,9 @@ module DCPFunctions
 	xml.LabelText_ content_version_label
       } # ContentVersion
     end
+    def get_dcp_editrate(asset_meta)
+       asset_meta[ CinemaslidesCommon::MXF_KEYS_EDIT_RATE ].to_s.gsub( '/', ' ' )
+    end
     def get_screen_aspect_ratio(dimension)
       dimension.gsub( 'x', ' ' )
     end
@@ -265,7 +271,11 @@ module DCPFunctions
       files.each do |file|
 	inc_imagecount()
 	asset_link = File.join( dcp_image_sequence_name, File.basename( file ).gsub( '.tiff', '' ) + '.' + dcp_image_sequence_suffix )
-	if File.dirname( File.readlink( file ) ) == image_sequence_conformdir # 1st file is always a link to the asset depot
+	
+#	if File.dirname( File.readlink( file ) ) == image_sequence_conformdir # 1st file is always a link to the asset depot
+# 	problematic also because it should be
+#	if File.dirname( File.readlink( file ) ) == File.expand_path(image_sequence_conformdir)
+	if (!previous_asset.eql?(""))
 	  
 	  if (previous_asset.eql?(""))
 	     @logger.debug("=========")

@@ -103,17 +103,17 @@ class CSTools
     fh_line =~ /^<\?xml version="1.0"/  # TODO recognizes only v 1.0 xml
   end
   def self.set_cinemaslidesdir
-    @logger = Logger::Logger.instance
+    @@logger = Logger::Logger.instance
     if ENV[ 'CINEMASLIDESDIR' ].nil?
-      @cinemaslidesdir = File.join( ENV[ 'HOME' ], "cinemaslidesdir" )
-      @logger.debug( "CINEMASLIDESDIR not set. Will use #{ @cinemaslidesdir }" )
+      @@cinemaslidesdir = File.join( ENV[ 'HOME' ], "cinemaslidesdir" )
+      @@logger.debug( "CINEMASLIDESDIR not set. Will use #{ @@cinemaslidesdir }" )
     else
-      @logger.debug( "CINEMASLIDESDIR is set to #{ ENV[ 'CINEMASLIDESDIR' ] }" )
-      @cinemaslidesdir = ENV[ 'CINEMASLIDESDIR' ]
+      @@logger.debug( "CINEMASLIDESDIR is set to #{ ENV[ 'CINEMASLIDESDIR' ] }" )
+      @@cinemaslidesdir = File.expand_path( ENV[ 'CINEMASLIDESDIR' ] )
     end
   end
   def self.get_cinemaslidesdir
-    @cinemaslidesdir
+    @@cinemaslidesdir
   end
   def self.set_commandline
     commandline = File.basename( $0 )
@@ -124,10 +124,10 @@ class CSTools
 	commandline += ' ' + arg
       end
     end
-    @commandline =  commandline
+    @@commandline =  commandline
   end
   def self.get_commandline
-    @commandline
+    @@commandline
   end
 end
 
@@ -268,15 +268,16 @@ include DCTools
 ####											####
 
 
-CSTools.set_cinemaslidesdir
-
 # reconstruct original commandline for readme file
 CSTools.set_commandline
 # destructive parse
 @options = OptParser::Optparser.parse(ARGV)
-
 @logger = Logger::Logger.instance
 @logger.set_prefix_verbosity( prefix = '*', @options.verbosity )
+
+CSTools.set_cinemaslidesdir
+
+
 
 if @options.three_D and ARGV != nil and ARGV.size > 0
   @logger.info("Files have to be specified with the '--3d-left' and '--3d-right' option.")
