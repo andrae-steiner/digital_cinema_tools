@@ -90,11 +90,23 @@ require 'CinemaslidesCommon'
 include TimeDateUtils
 
 class CSTools
+  def self.dereference_links(file)
+    while (File.symlink?(file)) do
+      file = File.readlink(file)
+    end
+    return file
+  end
   def self.is_directory?( file)
     File.exists?( file ) and File.ftype( file ) == 'directory'
   end
+  def self.is_directory_dereference_links?( file)
+    self.is_directory?( self.dereference_links( file ) )
+  end
   def self.is_file?( file)
     File.exists?( file ) and File.ftype( file ) == 'file'
+  end
+  def self.is_file_dereference_links?( file)
+    self.is_file?( self.dereference_links( file ) )
   end
   def self.is_XML_file?( file )
     fh = File.open( file, 'r' )

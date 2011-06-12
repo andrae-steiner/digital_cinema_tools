@@ -122,8 +122,8 @@ module KDM_Gen
       signer_cert_thumbprint = ShellCommands.dc_thumbprint_string(@signature_context.signer_cert_obj.to_s)
 
       # check for key directory
-      @keysdir = File.join( @output_type_obj.cinemaslidesdir, 'keys' )
-      if CSTools.is_directory?( @keysdir )
+      @keysdir = @output_type_obj.keysdir
+      if CSTools.is_directory_dereference_links?( @keysdir )
 	@logger.debug( "Content keystore at: #{ @keysdir }" )
       else
 	@logger.info( "No content keystore found (Looking for #{ @keysdir })" )
@@ -318,7 +318,7 @@ module KDM_Gen
 	@logger.info( "No target certificate specified. Use --target <certificate>" )
 	kdm_no_go << 'No target'
       else
-	if !CSTools.is_directory?( @kdm_target )
+	if !CSTools.is_directory_dereference_links?( @kdm_target )
 	  begin
 	    recipient = Recipient.new( @kdm_target)
 		    

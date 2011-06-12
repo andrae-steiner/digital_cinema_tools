@@ -272,19 +272,12 @@ module DCPFunctions
 	inc_imagecount()
 	asset_link = File.join( dcp_image_sequence_name, File.basename( file ).gsub( '.tiff', '' ) + '.' + dcp_image_sequence_suffix )
 	
-#	if File.dirname( File.readlink( file ) ) == image_sequence_conformdir # 1st file is always a link to the asset depot
+#	if File.dirname( File.readlink( file ) ) == image_sequence_conformdir 
+# 	1st file is always a link to the asset depot
 # 	problematic also because it should be
 #	if File.dirname( File.readlink( file ) ) == File.expand_path(image_sequence_conformdir)
 	if (!previous_asset.eql?(""))
-	  
-	  if (previous_asset.eql?(""))
-	     @logger.debug("=========")
-	     @logger.debug("=========")	     
-	     @logger.debug("========= previous asset should not be empty")	     
-	     @logger.debug("=========")	     
-	     @logger.debug("=========")
-	  end
-	  
+	  	  
 	  @logger.debug( "link previous_asset = #{ previous_asset }, asset_link = #{ asset_link }" )
 	  File.symlink( File.expand_path(previous_asset), asset_link ) 
 	  @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
@@ -294,9 +287,7 @@ module DCPFunctions
 	  # helps to speed up the check_for_asset calls
 	  # increases the chances that digest_over_file_basename is called in Module Asset
 	  # instead of digest_over_content
-	  while (File.symlink?(file)) do
-            file = File.readlink(file)
-          end
+	  file = CSTools.dereference_links( file )
 	  
 	  asset, todo = image_sequence.asset_functions.check_for_asset( file, dcp_image_sequence_suffix, level = nil ) # possible "Skip" message only with debug verbosity
 	  previous_asset = asset

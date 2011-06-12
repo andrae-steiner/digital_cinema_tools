@@ -114,6 +114,18 @@ module CinemaslidesCommon
   
   MAIN_STEREOSCOPIC_NAMESPACE   = "msp-cpl"
   MAIN_STEREOSCOPIC_PICTURE_TAG = "MainStereoscopicPicture"
+  MIN_DCP_LENGTH_SECONDS = 1
+  CONFORMDIR_BASENAME = 'conform'
+  CONFORMDIR_L_BASENAME = 'conform_l'
+  CONFORMDIR_R_BASENAME = 'conform_r'
+  IMAGE_SEQUENCE_NAME_L_PREFIX = 'l_'
+  IMAGE_SEQUENCE_NAME_R_PREFIX = 'r_'
+  THUMBSDIR_BASENAME = 'thumbs'
+  ASSETSDIR_BASENAME = 'assets'
+  ASSETSDIR_AUDIO_BASENAME = 'assets-audio'
+  KEYSDIR_BASENAME = 'keys'
+  DCPDIR_BASENAME = 'dcp'
+  
 
   # calculate indices of array source for multithreading
   # so that  source can be divided into equal parts and be

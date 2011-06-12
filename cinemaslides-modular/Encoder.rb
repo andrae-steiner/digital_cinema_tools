@@ -10,7 +10,7 @@ module Encoder
 	@fps = fps
       end
       def encode(file, asset)
-	raise NotImplementedError, "Do not instanciate this abstract class: Encoder"
+	raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
       end
     end
     

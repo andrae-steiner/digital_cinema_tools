@@ -73,7 +73,7 @@ module ImageSequence
     end
         
     def n_sequence_frames
-      raise NotImplementedError, "Do not instanciate this abstract class: ImageSequence"
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
     end
           
     def n_image_sequence_frames
@@ -137,7 +137,7 @@ module ImageSequence
     end
     
     def create_transitions
-      raise NotImplementedError, "Do not instanciate this abstract class: ImageSequence"
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
     end
     
     def create_trailer( file_sequence )

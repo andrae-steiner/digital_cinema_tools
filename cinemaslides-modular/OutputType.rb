@@ -69,11 +69,11 @@ module OutputType
     private
     
     def display_summary (summary_context)
-      raise NotImplementedError, "Do not instanciate this abstract class: OutputType"
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
     end
     
     def final_report (context)
-      raise NotImplementedError, "Do not instanciate this abstract class: OutputType"
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
     end
     
     def cleanup_workdir(keep, workdirs)
@@ -127,6 +127,19 @@ module OutputType
       @three_D = @options.three_D
     end
 
+    def convert_resize_extent_color_specs( image, filename )
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
+    end
+    
+    def convert_apply_level( image, level, filename )
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
+    end  
+    
+    def create_blackframe (file)
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
+    end
+
+    
     # TODO we should probably feed already "create_output_type" with a list of DCP::DCPAsset elements.
     #
     # But in this case MXF generation has to be delayed until DCP::DCP.add_cpl
@@ -143,7 +156,7 @@ module OutputType
     private 
     
     def done_message
-      raise NotImplementedError, "Do not instanciate this abstract class: AudioVideoOutputType"
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
     end
     
     def create_output_type2 (source, source_audio, signature_context)
@@ -176,6 +189,15 @@ module OutputType
 	  crossfade_time  = @options.crossfade_time,
 	  conformdir 	= @conformdir_r) 
       end
+            
+      # From Wolgang Woehls cinemaslides  e570ef227ba823b1188d
+      # Check for minimum playback length (1 second) right here
+      # No hoopla required as we're building 1-reelers only      
+      if CinemaslidesCommon::MIN_DCP_LENGTH_SECONDS > @image_sequence.n_sequence_frames / @fps
+	@logger.info( "Will not build DCP: Projected length < minimum playback length (#{CinemaslidesCommon::MIN_DCP_LENGTH_SECONDS} second#{CinemaslidesCommon::MIN_DCP_LENGTH_SECONDS>1?"s":""})" )
+	exit
+      end
+      
       @audio_sequence = AudioSequence::AudioSequence.new(
 	source_audio,
 	image_sequence   = @image_sequence,
@@ -241,18 +263,18 @@ module OutputType
     
     def setup_output_directories(source_empty, source_audio_empty)
       @workdir = File.join( @cinemaslidesdir, "#{ File.basename( $0 ) }_#{ get_timestamp }_#{ @options.output_type }" )
-      @conformdir = File.join( @workdir, 'conform' )
-      @conformdir_l = File.join( @workdir, 'conform_l' )
-      @conformdir_r = File.join( @workdir, 'conform_r' )
+      @conformdir = File.join( @workdir, CinemaslidesCommon::CONFORMDIR_BASENAME )
+      @conformdir_l = File.join( @workdir, CinemaslidesCommon::CONFORMDIR_L_BASENAME )
+      @conformdir_r = File.join( @workdir, CinemaslidesCommon::CONFORMDIR_R_BASENAME )
       @dcp_image_sequence_name = File.join( @workdir, @dcp_functions.dcp_image_sequence_basename )
-      @dcp_image_sequence_name_l = File.join( @workdir, 'l_' + @dcp_functions.dcp_image_sequence_basename )
-      @dcp_image_sequence_name_r = File.join( @workdir, 'r_' + @dcp_functions.dcp_image_sequence_basename  )
-      @thumbsdir = File.join( @cinemaslidesdir, 'thumbs' )
-      @assetsdir = File.join( @cinemaslidesdir, 'assets' )
-      @assetsdir_audio = File.join( @cinemaslidesdir, 'assets-audio' )
-      @keysdir = File.join( @cinemaslidesdir, 'keys' )
+      @dcp_image_sequence_name_l = File.join( @workdir, CinemaslidesCommon::IMAGE_SEQUENCE_NAME_L_PREFIX + @dcp_functions.dcp_image_sequence_basename )
+      @dcp_image_sequence_name_r = File.join( @workdir, CinemaslidesCommon::IMAGE_SEQUENCE_NAME_R_PREFIX + @dcp_functions.dcp_image_sequence_basename  )
+      @thumbsdir = File.join( @cinemaslidesdir, CinemaslidesCommon::THUMBSDIR_BASENAME )
+      @assetsdir = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_BASENAME )
+      @assetsdir_audio = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_AUDIO_BASENAME )
+      @keysdir = File.join( @cinemaslidesdir, CinemaslidesCommon::KEYSDIR_BASENAME )
 
-      OptParser::Optparser.set_dcpdir_option(File.join( @workdir, 'dcp' ))
+      OptParser::Optparser.set_dcpdir_option(File.join( @workdir, CinemaslidesCommon::DCPDIR_BASENAME ))
 
       if confirm_or_create( @cinemaslidesdir )
 	@logger.debug( "#{ @cinemaslidesdir } is writeable" )

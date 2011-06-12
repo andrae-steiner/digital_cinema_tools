@@ -24,7 +24,7 @@ module InputType
     def seperate_and_check_files
       # seperate and check files
       # return [ [images], [audiofiles], [no_code_delagate_files] ]
-      raise NotImplementedError, "Do not instanciate this abstract class: InputType"
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
     end
   end
   
@@ -92,7 +92,7 @@ module InputType
 	end
 	# quick and dirty version of audio file pickup (which is the whole point of --dont-check)
 	source_audio = Array.new	
-	source_tmp,  not_readable_or_regular = collect_files( @source )
+	source_tmp,  not_readable_or_not_regular = collect_files( @source )
 	@source = source_tmp.clone
 	
 	@source.each do |element|
@@ -104,7 +104,7 @@ module InputType
 	@source = source_tmp.clone
       else # check files
 	# remove un-readable elements
-	source_tmp,  not_readable_or_regular = collect_files( @source )
+	source_tmp,  not_readable_or_not_regular = collect_files( @source )
 	@source = source_tmp.flatten.compact.dup
 	
 	# check type (image/audio)
@@ -128,10 +128,10 @@ module InputType
 	no_decode_delegate.flatten!.compact!	
 
 	drops = FALSE
-	if not_readable_or_regular.size > 0
+	if not_readable_or_not_regular.size > 0
 	  drops = TRUE
-	  @logger.debug( "Not readable or no regular file: #{ not_readable_or_regular.join( ', ' ) }" )
-	elsif not_readable_or_regular.size == 0 and source_tmp.size > 0
+	  @logger.debug( "Not readable or no regular file: #{ not_readable_or_not_regular.join( ', ' ) }" )
+	elsif not_readable_or_not_regular.size == 0 and source_tmp.size > 0
 	  @logger.debug( "All files readable and regular files" )
 	end
 	
@@ -178,26 +178,26 @@ module InputType
     # returns two arrays: an array of all the file names and an array of all the
     # not readable or not regular file names
     def collect_files( source )
-      not_readable_or_regular = Array.new
+      not_readable_or_not_regular = Array.new
       source_tmp = Array.new
       source.each do |element|
 	if File.exists?( element ) 
-	  if CSTools.is_directory?( element )
+	  if CSTools.is_directory_dereference_links?( element )
 	    s2, nr2 = collect_files( Dir.glob( "#{ element }/*" ).sort )
-	    not_readable_or_regular << nr2
+	    not_readable_or_not_regular << nr2
 	    source_tmp << s2
-	  elsif CSTools.is_file?( element )
+	  elsif CSTools.is_file_dereference_links?( element )
 	    source_tmp << element
 	  else
-	    not_readable_or_regular << element
+	    not_readable_or_not_regular << element
 	    @logger.debug( "No regular file: #{ element }" )
 	  end
 	else
-	  not_readable_or_regular << element
+	  not_readable_or_not_regular << element
 	  @logger.debug( "Not readable: #{ element }" )
 	end
       end
-      return source_tmp.flatten.compact.dup, not_readable_or_regular.flatten.compact.dup
+      return source_tmp.flatten.compact.dup, not_readable_or_not_regular.flatten.compact.dup
     end
     
     def check_files(source)
