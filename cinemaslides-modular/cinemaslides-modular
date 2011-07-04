@@ -83,18 +83,39 @@ require 'X509Certificate'
 require 'InputType'
 require 'ShellCommands'
 require 'DCP'
-require 'DCPFunctions'
+require 'DCPFunctions_M'
 require 'KDM_SMPTE_430_1_2006'
 require 'CinemaslidesCommon'
+ShellCommands = ShellCommands::ShellCommands
 
 include TimeDateUtils
 
+# See http://log.guidoderosa.net/2009/06/make-ruby-method-filereadlink-behave.html
+#
+# While File.readlink behaves like the analogous shell command,
+# File.readlink! behaves like 'readlink -f'
+#
+# from Wolfgang Woehl digital_cinema_tools 16e0e56ee0ff9e68e8f9
+class File
+  def File.readlink!( path )
+    path = File.expand_path( path )
+    dirname = File.dirname( path )
+    readlink = File.readlink( path )
+    if not readlink =~ /^\// # it's a relative path
+      readlink = dirname + '/'+ readlink # make it absolute
+    end
+    readlink = File.expand_path( readlink ) # eliminate this/../../that
+    if File.symlink?( readlink )
+      return File.readlink!( readlink ) # recursively follow symlinks
+    else
+      return readlink
+    end
+  end
+end
+
 class CSTools
   def self.dereference_links(file)
-    while (File.symlink?(file)) do
-      file = File.readlink(file)
-    end
-    return file
+    return File.symlink?(file) ? File.readlink!( file ) : file
   end
   def self.is_directory?( file)
     File.exists?( file ) and File.ftype( file ) == 'directory'
@@ -141,6 +162,29 @@ class CSTools
   def self.get_commandline
     @@commandline
   end
+  def self.confirm_or_create( location )
+  # location (a directory) might exist and be either writeable or not.
+  # it might not exist and be either writeable (read 'can be created') or not.
+  # since we want to be able to specify a "deep" path (topdir/with/children/...) File.writable?() wouldn't work.
+  testfile = File.join( location, ShellCommands.uuid_gen )
+  if File.exists?( location )
+    begin
+      result = ShellCommands.touch_command( testfile )
+      File.delete( testfile )
+      return TRUE # location exists and we can write to it
+    rescue Exception => result
+      return FALSE # location exists but we can't write to it
+    end
+  else
+    begin
+      result = FileUtils.mkdir_p( location )
+      return TRUE # location created, hence writeable
+    rescue Exception => result
+      return FALSE
+    end
+  end
+end
+
 end
 
 def key_types
@@ -172,6 +216,12 @@ def dcp_functions_classnames
   { CinemaslidesCommon::OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM => 'SMPTEDCPFunctions', 
     CinemaslidesCommon::OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM => 'MXFInterOpDCPFunctions', 
     CinemaslidesCommon::OUTPUT_TYPE_CHOICE_NO_DCP_NORM =>  'SMPTEDCPFunctions' }
+end
+
+def dcp_graphics_format_functions_classnames
+  { CinemaslidesCommon::MPEG_GRAPHICS_FORMAT => 'MPEGDCPGraphicsFormatFunctions',
+    CinemaslidesCommon::JPEG2000_GRAPHICS_FORMAT => 'JPEG2000DCPGraphicsFormatFunctions'
+    }
 end
 
 def input_type_classnames
@@ -232,7 +282,7 @@ module DCTools
   end
   
   def asdcp_digest( file )
-    ShellCommands::ShellCommands.openssl_sha1_64( file.to_s ).chomp
+    ShellCommands.openssl_sha1_64( file.to_s ).chomp
     
     # equiv. `openssl dgst -sha1 -binary #{ file } | openssl base64`.chomp
     
@@ -245,14 +295,14 @@ module DCTools
   end
   
   def asdcp_digest_string (string)
-    ShellCommands::ShellCommands.openssl_sha1_64_string( string ).chomp
+    ShellCommands.openssl_sha1_64_string( string ).chomp
   end
                     
   
   def cipher_data_payload_binary_package( signer_cert_thumbprint, cpl_id, key_type, key_id, kdm_not_valid_before, kdm_not_valid_after, key )
     # see SMPTE 430-1-2006 section 6.1.2 Cipher Data
     structure_id_bin = %w( f1 dc 12 44 60 16 9a 0e 85 bc 30 06 42 f8 66 ab ).pack( 'H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2' )
-    signer_cert_thumbprint_bin = ShellCommands::ShellCommands.base64(signer_cert_thumbprint)
+    signer_cert_thumbprint_bin = ShellCommands.base64(signer_cert_thumbprint)
     cpl_id_bin = uuid_to_bin( cpl_id )
     key_id_bin = uuid_to_bin( key_id )
     key_bin = key.split( /(\w\w)/ ).delete_if { |e| e == '' }.pack( 'H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2H2' )
@@ -280,6 +330,8 @@ include DCTools
 ####											####
 
 
+DCPFunctions_M.const_get('JPEG2000DCPGraphicsFormatFunctions')
+
 # reconstruct original commandline for readme file
 CSTools.set_commandline
 # destructive parse
@@ -288,8 +340,6 @@ CSTools.set_commandline
 @logger.set_prefix_verbosity( prefix = '*', @options.verbosity )
 
 CSTools.set_cinemaslidesdir
-
-
 
 if @options.three_D and ARGV != nil and ARGV.size > 0
   @logger.info("Files have to be specified with the '--3d-left' and '--3d-right' option.")
@@ -346,7 +396,7 @@ exit if !OptParser::Optparser.input_type_option_ok?
 # here the appropriate class e.g. preview or dcp is loaded
 @output_type_obj = OutputType.const_get(output_type_classnames[@options.output_type]).new( 
   mandatory = mandatories[@options.output_type], 
-  dcp_functions = DCPFunctions.const_get(dcp_functions_classnames[@options.dcp_norm]).new )
+  dcp_functions = DCPFunctions_M.const_get(dcp_functions_classnames[@options.dcp_norm]).new )
 
 exit if !OptParser::Optparser.aspect_option_ok?
 exit if !OptParser::Optparser.size_option_ok?
@@ -367,6 +417,8 @@ OptParser::Optparser.set_output_format_option
   dont_drop = @options.dont_check,
   @image_sequence_class, 
   audio_only = FALSE)
+
+
 
 @source_left, @source_audio, no_decode_delegate, files_ok  = @input_type.seperate_and_check_files
 exit if !files_ok

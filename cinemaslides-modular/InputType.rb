@@ -59,8 +59,8 @@ module InputType
 #      @audio_from_av = "/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"
       # TODO create a method in ShellCommands for this
       # FIXME do not hard code fps
-      `ffmpeg -y -i "#{ @avfile }" -an -r 24   -qscale 1 -qmin 1 -intra -t 0:0:10 -pix_fmt yuv420p -b 50000k #{File.join(@image_output_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+".jpg")}`
-      `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 24 -t 0:0:10 -ar 48000 #{ @audio_from_av }`
+      `ffmpeg -y -i "#{ @avfile }" -an -r 25   -qscale 1 -qmin 1 -intra  -pix_fmt yuv420p -b 50000k #{File.join(@image_output_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+".png")}`
+      `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 25  -ar 48000 #{ @audio_from_av }`
       
 #      return Dir.glob( "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00/*" ).sort,  ["/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"], nil, TRUE
       
@@ -106,14 +106,14 @@ module InputType
 	# remove un-readable elements
 	source_tmp,  not_readable_or_not_regular = collect_files( @source )
 	@source = source_tmp.flatten.compact.dup
-	
+	@logger.debug("SOURCE: len = #{@source.length}, #{@source.inspect}")
 	# check type (image/audio)
 	no_decode_delegate = Array.new
 	source_tmp = Array.new
 		
 	threads = CinemaslidesCommon::process_elements_multithreaded( @source ) {|i, indices|
 	    start_index, end_index = indices[i]
-	    @logger.debug("T:#{i}, START CHECKFILES THREAD")
+	    @logger.debug("T:#{i}, START CHECKFILES THREAD start = #{start_index}, end = #{end_index}")
 	    Thread.current["source_tmp"], 
 	    Thread.current["source_audio"], 
 	    Thread.current["no_decode_delegate"] = check_files(@source[ start_index .. end_index ])

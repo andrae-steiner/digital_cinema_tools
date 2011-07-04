@@ -12,8 +12,9 @@ module ImageSequence
   class FileSequence
     attr_reader :framecount
     def initialize (dir, output_format, fps, starting_frame)
-      @starting_frame = starting_frame
-      @framecount = 1 + starting_frame
+      @logger = Logger::Logger.instance
+      @framecount = 1 + starting_frame.round.to_i
+#      @logger.debug("T #{Thread.current[:id]}: FileSequence#init framecount= #{@framecount}")
       @dir = dir
       @fps = fps
       @output_format = output_format
@@ -21,7 +22,9 @@ module ImageSequence
     end
 
     def next_file
-      file = File.join( @dir, "#{ CinemaslidesCommon::FILE_SEQUENCE_FORMAT % @framecount }.#{ @output_format }" )
+#      @logger.debug("T #{Thread.current[:id]}: FileSequence#nextfile framecount= #{"%.10f" % @framecount}, framecount.to_i = #{@framecount.to_i} ")
+      file = File.join( @dir, "#{ CinemaslidesCommon::FILE_SEQUENCE_FORMAT % (@framecount) }.#{ @output_format }" )
+#      @logger.debug("T #{Thread.current[:id]}: FileSequence#nextfile file = #{file}")      
       @framecount += 1
       file
     end
@@ -44,9 +47,7 @@ module ImageSequence
                     fps, black_leader, black_tail, fade_in_time, duration, fade_out_time, 
                     crossfade_time, conformdir)
       @imagecount = 0
-      @conform_mutexes = Hash.new
       @imagecount_mutex = Mutex.new
-      @conform_mutex = Mutex.new
       @source = source
       @logger = Logger::Logger.instance
       @output_type_obj = output_type_obj
@@ -95,20 +96,28 @@ module ImageSequence
       Dir.mkdir( @output_type_obj.thumbsdir ) unless File.exists?( @output_type_obj.thumbsdir )
       @logger.info( "Create thumbnails" )
       thumbs = Array.new
-      @source.each do |single_source|
-	thumbasset, todo = @thumb_asset_functions.check_for_asset(single_source, CinemaslidesCommon::THUMBFILE_SUFFIX)
-	if todo
-	  @logger.info( "Thumb for #{ single_source }" )
-	  ShellCommands.IM_convert_thumb( single_source, @output_type_obj.thumbs_dimensions, thumbasset)
-	end
-	thumbs << thumbasset
-      end
-      thumbs = thumbs.join(' ')
+      threads = CinemaslidesCommon::process_elements_multithreaded( @source ){|i, indices|
+	@logger.debug( "Start Thumbs conversion thread ##{i}" )
+        Thread.current[ "thumbs" ] = Array.new
+        start_index, end_index = indices[i]
+        @source[ start_index..end_index ].each do |single_source|
+	thumbasset = 
+	    @thumb_asset_functions.create_asset(single_source, CinemaslidesCommon::THUMBFILE_SUFFIX) {|thumbasset|
+	      @logger.info( "Thumb for #{ single_source }" )
+	      ShellCommands.IM_convert_thumb( single_source, @output_type_obj.thumbs_dimensions, thumbasset )
+	    }
+	Thread.current[ "thumbs" ] << thumbasset
+      end                                                    
+      }
+      threads.each {|t| thumbs << t[ "thumbs" ] }
+      thumbs.flatten!.compact!
+      
       # cache montages, wacky-hacky using string of all thumbnail filenames (md5 hexdigest and some) to match
-      thumbs_asset, todo =  @thumb_asset_functions.check_for_montage_asset(thumbs, CinemaslidesCommon::THUMBFILE_SUFFIX )
-      if todo
-	ShellCommands.IM_montage(thumbs, @source.length, @output_type_obj.thumbs_dimensions, thumbs_asset)
-      end
+      thumbs_asset =  
+	  @thumb_asset_functions.create_montage_asset(thumbs.join( ' ' ), CinemaslidesCommon::THUMBFILE_SUFFIX ) {|a|
+	    ShellCommands.IM_montage( thumbs, @source.length, @output_type_obj.thumbs_dimensions, a )
+	  }
+      
       return thumbs_asset
     end
     
@@ -209,7 +218,7 @@ module ImageSequence
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
 	
-	asset = create_asset( image, level ) {|a| @output_type_obj.convert_apply_level( image, level, a )}
+	asset = @asset_functions.create_asset( image, @output_format, level ) {|a| @output_type_obj.convert_apply_level( image, level, a )}
 	
 	File.symlink( File.expand_path(asset),  filename )
       end
@@ -227,40 +236,21 @@ module ImageSequence
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
 	
-	asset = create_asset( [image1, image2], level ) {|a| composite( image1, level, image2, a )}
+	asset = @asset_functions.create_asset( [image1, image2], @output_format, level ) {|a| composite( image1, level, image2, a )}
 	
 	File.symlink( File.expand_path(asset),  filename )
       end
     end
     
-    def create_asset( image,  level = nil , &block)
-      asset = ""; todo = TRUE
-      @conform_mutex.synchronize do
-	asset, todo = @asset_functions.check_for_asset( image, @output_format, level )
-	@conform_mutexes[asset] = Mutex.new unless @conform_mutexes.has_key?(asset)
-      end
-      @conform_mutexes[asset].synchronize do
-	if todo
-	  yield asset
-	end
-      end
-      return asset
-    end
-    
-    def create_black_asset( &block )
-      return create_asset( CinemaslidesCommon::FILENAME_BLACK_FRAME,  level = nil, &block )
-    end
-
     def full_level( image, duration, file_sequence )
       return if (duration < (1.0/@fps.to_f) )
-      @logger.info( "--- Full level #{ imagecount_info( image ) }" )
+      @logger.info( "T #{Thread.current[:id]}: --- Full level #{ imagecount_info( image ) }" )
       level = 0
       file = file_sequence.next_file
-#	@logger.debug("3 symlink p1 = #{ image }, p2 = #{ file }")
       File.symlink( File.expand_path(image),  file )
       if ( 1 ..( duration * @fps - 1 ) ).none? # only 1 image needed
   #      @framecount += 1 # temporary fix for FIXME @framecount stumble (Errno::EEXIST) on first fade out frame with 0 or 1 frame full level settings, like with $ cinemaslides 01.jpg 02.jpg -x crossfade,1,0
-	@logger.debug( "Skip sequence links: Only 1 image needed here" )
+	@logger.debug( "T #{Thread.current[:id]}: Skip sequence links: Only 1 image needed here" )
       else
   #      @framecount += 1
 	file_sequence.sequence_links_to( file, duration )
@@ -269,13 +259,13 @@ module ImageSequence
         
     # all fade/crossfade ops are based on these assets
     def conform( image )
-      @logger.info( "Conform image: #{ image }" )
-      return create_asset( image ) {|a| @output_type_obj.convert_resize_extent_color_specs( image, a  )}
+      @logger.info( "T #{Thread.current[:id]}: Conform image: #{ image }" )
+      return @asset_functions.create_asset( image, @output_format ) {|a| @output_type_obj.convert_resize_extent_color_specs( image, a  )}
     end
 
     def black_sequence( duration , file_sequence)
       @logger.debug("BLACK SEQUENCE OF #{duraation} SECONDS.")
-      full_level( image = create_black_asset() {|a| @output_type_obj.create_blackframe(a)}, 
+      full_level( image = @asset_functions.create_black_asset( @output_format ) {|a| @output_type_obj.create_blackframe(a)}, 
                   duration, 
                   file_sequence )
     end
@@ -304,15 +294,22 @@ module ImageSequence
     
     def create_transitions
       threads = CinemaslidesCommon::process_elements_multithreaded( @source ){|i, indices|
+        Thread.current[:id] = i
         start_index, end_index = indices[i]
-	@logger.debug("START CREATE_TRANSITIONS THREAD")
+	@logger.debug("T #{Thread.current[:id]}: START CREATE_TRANSITIONS THREAD, start= #{start_index}, end = #{end_index}")
 	file_sequence = FileSequence.new(@conformdir, @output_format, @fps, 
                                                 starting_frame = (@black_leader + start_index * ( @fade_in_time + @duration + @fade_out_time ) ) * @fps)
 	@source[start_index..end_index].each do |source_element|
 	  incr_imagecount()
 	  image = conform( source_element )
-	  fade_in_hold_fade_out( image, @fade_in_time, @duration, @fade_out_time, file_sequence )
-	end
+	  if !@asset_functions.asset_mutexes.has_key?(image)
+	    @logger.info("T #{Thread.current[:id]}: no key for @asset_functions.asset_mutexes[\"#{image}\"]. This should not happen. Exiting")
+	    exit
+	  end                                                                      
+	  @asset_functions.asset_mutexes[image].synchronize do
+	    fade_in_hold_fade_out( image, @fade_in_time, @duration, @fade_out_time, file_sequence )
+	  end
+       	end
       }
     end
         
@@ -335,8 +332,8 @@ module ImageSequence
     
     def create_transitions
       threads = CinemaslidesCommon::process_elements_multithreaded( @source ){|thread_i, indices|
+	  Thread.current[:id] = thread_i
           start_index, end_index = indices[thread_i]
-	  @logger.debug("START CREATE_TRANSITIONS THREAD")
 	  file_sequence = FileSequence.new(@conformdir, @output_format, @fps, 
                                                 starting_frame = (@black_leader + start_index * ( @crossfade_time + @duration ) ) * @fps)
 	  keeper = conform( @source[ start_index ] ) # keep a conform for the next crossfade (2nd will be 1st then, don't conform again)
@@ -348,7 +345,13 @@ module ImageSequence
 	    image2 = conform( @source[ start_index + index + 1 ] )
 	    keeper = image2
 	    full_level( image1,  @duration, file_sequence )
-	    crossfade( image1, image2,  @crossfade_time, file_sequence )
+            if !@asset_functions.asset_mutexes.has_key?(image2)
+	      @logger.info("T #{Thread.current[:id]}: no key for @asset_functions.asset_mutexes[\"#{image2}\"]. This should not happen. Exiting")
+              exit
+            end                                                                      
+            @asset_functions.asset_mutexes[image2].synchronize do
+	      crossfade( image1, image2,  @crossfade_time, file_sequence )
+            end
 	  end
 	  if (thread_i == indices.length - 1)
 	    incr_imagecount()
@@ -388,7 +391,7 @@ module ImageSequence
 	level = levels[ i - 1 ]
 	@logger.cr( sprintf( '%.2f', level ) )
 	
-	asset = create_asset( [image1, image2], level) {|a| composite( image1, i*15, level, image2, a )}
+	asset = @asset_functions.create_asset( [image1, image2], @output_format, level ) {|a| composite( image1, i*15, level, image2, a )}
 
 #	@logger.debug("2 symlink p1 = #{ asset }, p2 = #{ filename }")
 	File.symlink( File.expand_path(asset),  filename )

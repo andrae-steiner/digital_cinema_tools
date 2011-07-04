@@ -173,7 +173,7 @@ module OutputType
 	duration        = @options.duration,
 	fade_out_time   = @options.fade_out_time, 
 	crossfade_time  = @options.crossfade_time,
-	conformdir 	= @options.three_D ? @conformdir_l : @conformdir) 
+	conformdir 	= @conformdir) 
       if @options.three_D
 	@image_sequence_r = ImageSequence.const_get(image_sequence_classnames[@options.transition_and_timing.first]).new(
 	  source[1], 
@@ -234,22 +234,13 @@ module OutputType
       end
 
       Dir.mkdir( @workdir ) unless File.exists?( @workdir )
+      Dir.mkdir( @conformdir )
+      t2 = Thread.new { @image_sequence.create_image_sequence }
       if @options.three_D
-	Dir.mkdir( @conformdir_l )
-	Dir.mkdir( @conformdir_r )
-	t2 = Thread.new do      
-	  @image_sequence.create_image_sequence
-	end
-	t1.join(); t2.join();
-	t3 = Thread.new do      
-	  @image_sequence_r.create_image_sequence
-	end
-	t3.join()
-      else
 	Dir.mkdir( @conformdir )
-	t2 = Thread.new do      
-	  @image_sequence.create_image_sequence
-	end
+	t3 = Thread.new { @image_sequence_r.create_image_sequence }
+	t1.join(); t2.join(); t3.join()
+      else
 	t1.join(); t2.join();
       end
       
@@ -263,20 +254,20 @@ module OutputType
     
     def setup_output_directories(source_empty, source_audio_empty)
       @workdir = File.join( @cinemaslidesdir, "#{ File.basename( $0 ) }_#{ get_timestamp }_#{ @options.output_type }" )
-      @conformdir = File.join( @workdir, CinemaslidesCommon::CONFORMDIR_BASENAME )
-      @conformdir_l = File.join( @workdir, CinemaslidesCommon::CONFORMDIR_L_BASENAME )
+      @conformdir = @options.three_D ? File.join( @workdir, CinemaslidesCommon::CONFORMDIR_L_BASENAME ) : File.join( @workdir, CinemaslidesCommon::CONFORMDIR_BASENAME )
+#      @conformdir_l = File.join( @workdir, CinemaslidesCommon::CONFORMDIR_L_BASENAME )
       @conformdir_r = File.join( @workdir, CinemaslidesCommon::CONFORMDIR_R_BASENAME )
       @dcp_image_sequence_name = File.join( @workdir, @dcp_functions.dcp_image_sequence_basename )
       @dcp_image_sequence_name_l = File.join( @workdir, CinemaslidesCommon::IMAGE_SEQUENCE_NAME_L_PREFIX + @dcp_functions.dcp_image_sequence_basename )
       @dcp_image_sequence_name_r = File.join( @workdir, CinemaslidesCommon::IMAGE_SEQUENCE_NAME_R_PREFIX + @dcp_functions.dcp_image_sequence_basename  )
       @thumbsdir = File.join( @cinemaslidesdir, CinemaslidesCommon::THUMBSDIR_BASENAME )
-      @assetsdir = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_BASENAME )
-      @assetsdir_audio = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_AUDIO_BASENAME )
       @keysdir = File.join( @cinemaslidesdir, CinemaslidesCommon::KEYSDIR_BASENAME )
-
+      
       OptParser::Optparser.set_dcpdir_option(File.join( @workdir, CinemaslidesCommon::DCPDIR_BASENAME ))
+     
 
-      if confirm_or_create( @cinemaslidesdir )
+      @assetsdir = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_BASENAME )
+      if CSTools.confirm_or_create( @cinemaslidesdir )
 	@logger.debug( "#{ @cinemaslidesdir } is writeable" )
       else
 	@logger.critical( "#{ @cinemaslidesdir } is not writeable. Check your mounts or export CINEMASLIDESDIR to point to a writeable location." )
@@ -285,6 +276,9 @@ module OutputType
       unless source_empty # TODO audio-only DCP
 	Dir.mkdir( @assetsdir ) unless File.exists?( @assetsdir )
       end
+      
+
+      @assetsdir_audio = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_AUDIO_BASENAME )
       unless source_audio_empty
 	Dir.mkdir( @assetsdir_audio ) unless File.exists?( @assetsdir_audio )
       end
@@ -297,30 +291,7 @@ module OutputType
       @logger.debug( "#{ frames } frames written" )
       @logger.info( "Cinema Slideshow is #{ hours_minutes_seconds_verbose( ( frames ) / context.fps ) } long (#{ context.source.length } image#{ 's' * ( context.source.length == 1 ? 0 : 1 )} | #{ context.transition_and_timing.join(',').gsub(' ', '') } | #{ frames } frames | #{ context.fps } fps)" )
     end
-    
-    def confirm_or_create( location )
-    # location (a directory) might exist and be either writeable or not.
-    # it might not exist and be either writeable (read 'can be created') or not.
-    # since we want to be able to specify a "deep" path (topdir/with/children/...) File.writable?() wouldn't work.
-      testfile = File.join( location, ShellCommands.uuid_gen )
-      if File.exists?( location )
-	begin
-	  result = ShellCommands.touch_command( testfile )
-	  File.delete( testfile )
-	  return TRUE # location exists and we can write to it
-	rescue Exception => result
-	  return FALSE # location exists but we can't write to it
-	end
-      else
-	begin
-	  result = FileUtils.mkdir_p( location )
-	  return TRUE # location created, hence writeable
-	rescue Exception => result
-	  return FALSE
-	end
-      end
-    end
-    
+        
     # fit custom aspect ratios into the target container dimensions (1k for preview, 2k/4k for fullpreview/dcp)
     def scale_to_fit_container( aspect, container_width, container_height )
       width, height = aspect.split( Optparser::ASPECT_CHOICE_CUSTOM_PREFIX ).last.split( 'x' ).collect{|x| x.to_f}
@@ -492,7 +463,7 @@ module OutputType
       super( source, source_audio, signature_context)
       
       if @options.three_D
-	@dcp_functions.convert_to_dcp_image_format( @image_sequence, @conformdir_l, self,  @dcp_image_sequence_name_l )
+	@dcp_functions.convert_to_dcp_image_format( @image_sequence, @conformdir, self,  @dcp_image_sequence_name_l )
 	@dcp_functions.convert_to_dcp_image_format( @image_sequence_r, @conformdir_r, self,  @dcp_image_sequence_name_r )
       else
 	@dcp_functions.convert_to_dcp_image_format( @image_sequence, @conformdir, self,  @dcp_image_sequence_name)
@@ -622,7 +593,7 @@ module OutputType
     end
     
     def cleanup_workdir(keep)
-      super(keep, [ @conformdir, @conformdir_l, @conformdir_r, @dcp_image_sequence_name, @dcp_image_sequence_name_l, @dcp_image_sequence_name_r, @workdir ]  )
+      super(keep, [ @conformdir, @conformdir_r, @dcp_image_sequence_name, @dcp_image_sequence_name_l, @dcp_image_sequence_name_r, @workdir ]  )
     end
     
     def done_message
@@ -643,7 +614,7 @@ module OutputType
 	  end
 	end
       end
-      if confirm_or_create( @options.dcpdir )
+      if CSTools.confirm_or_create( @options.dcpdir )
 	@logger.debug( "#{ @options.dcpdir } is writeable" )
       else
 	@logger.critical( "#{ @options.dcpdir } is not writeable. Check your mounts and permissions." )

@@ -1,4 +1,4 @@
-module DCPFunctions
+module DCPFunctions_M
 
   require 'Logger'
   require 'Encoder'
@@ -9,13 +9,106 @@ module DCPFunctions
   require 'CinemaslidesCommon'
   
   ShellCommands = ShellCommands::ShellCommands
+  
+  
+  class DCPGraphicsFormatFunctions
+    def initialize(dcp_functions)
+      @dcp_functions = dcp_functions
+      @logger = Logger::Logger.instance
+    end
+    def convert_to_dcp_image_format (image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"    
+    end
+  end
+  
+  
+  class MPEGDCPGraphicsFormatFunctions < DCPGraphicsFormatFunctions
+    
+    def convert_to_dcp_image_format (image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
+       convert_to_dcp_image_format_single_thread(image_sequence, image_sequence_conformdir, output_type,dcp_image_sequence_name )
+    end
+    def convert_to_dcp_image_format_single_thread(image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
+      x,y = dimensions[ CinemaslidesCommon::ASPECT_CONTAINER ].collect{|x| x * output_type.size.split( '' ).first.to_i}
+      
+      # `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(image_sequence_conformdir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y} -qscale 1 -qmin 1 -intra -r #{output_type.fps} -an #{dcp_image_sequence_name}`
+      
+      `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(image_sequence_conformdir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y}  -b 40000k -intra -r #{output_type.fps} -an #{dcp_image_sequence_name}`
+      
+    end
+    
+  end
+  
+  
+  class JPEG2000DCPGraphicsFormatFunctions < DCPGraphicsFormatFunctions
+
+    def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
+      Dir.mkdir( dcp_image_sequence_name )
+      ## JPEG 2000 encoding
+      @logger.info( "Encode to JPEG 2000" )
+      filemask = File.join( image_sequence_conformdir, "*.#{ image_sequence.output_format }" )
+      files = Dir.glob( filemask ).sort
+            
+      threads = CinemaslidesCommon::process_elements_multithreaded( files ){|i, indices|
+            start_index, end_index = indices[i]
+	    @logger.debug("START ENCODING THREAD")
+	    convert_to_dcp_image_format_2( files.size(), image_sequence, image_sequence_conformdir, files[start_index..end_index], output_type, dcp_image_sequence_name )
+      }
+      
+    end # def convert_to_dcp_image_format (image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name)
+                                    
+    def convert_to_dcp_image_format_2( n_total_images, image_sequence, image_sequence_conformdir, files, output_type, dcp_image_sequence_name )
 	
+      previous_asset = ""
+      
+      encoder = Encoder.const_get(encoder_classnames[output_type.jpeg2000_codec]).new(
+	size = output_type.size,
+	stereo = ( output_type.dcp_wrap_stereoscopic or output_type.three_D ),
+	fps = image_sequence.fps)
+      
+      files.each do |file|
+	 @dcp_functions.inc_imagecount()
+	# Wolfgang Woehl ad57b2f7d05f4a649e98 
+	asset_link = File.join( dcp_image_sequence_name, File.basename( file ).gsub( /.#{CinemaslidesCommon::SMPTE_INTERMEDIATE_FILE_SUFFIX}$/, '.' + @dcp_functions.dcp_image_sequence_suffix )  )
+	
+#	if File.dirname( File.readlink( file ) ) == image_sequence_conformdir 
+# 	1st file is always a link to the asset depot
+# 	problematic also because it should be
+	if ( File.dirname( File.readlink( file ) ) == File.expand_path(image_sequence_conformdir) ) and ( !previous_asset.eql?( "" ) )	
+	  @logger.debug( "link previous_asset = #{ previous_asset }, asset_link = #{ asset_link }" )
+	  File.symlink( File.expand_path(previous_asset), asset_link ) 
+	  @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ @dcp_functions.get_imagecount } of #{ n_total_images })" )
+	  @logger.debug( "Skip (Full level): #{ File.basename( file ) } (#{ @dcp_functions.get_imagecount } of #{ n_total_images })" )
+	else
+	  
+	  # helps to speed up the check_for_asset calls
+	  # increases the chances that digest_over_file_basename is called in Module Asset
+	  # instead of digest_over_content
+	  file = CSTools.dereference_links( file )
+	  
+	  # possible "Skip" message only with debug verbosity
+	  asset = image_sequence.asset_functions.create_asset( file, @dcp_functions.dcp_image_sequence_suffix, level = nil ) {|asset|
+	    @logger.cr( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ @dcp_functions.get_imagecount } of #{n_total_images })" )
+	    @logger.debug( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{  @dcp_functions.get_imagecount } of #{ n_total_images })" )
+	    @logger.debug("@options.jpeg2000_codec = #{ output_type.jpeg2000_codec }")
+	    @logger.debug("Encode  >>#{file}<< to >>#{asset}<<. ");
+	    encoder.encode( file, asset )
+	  }
+	  previous_asset = asset
+	  
+	  File.symlink( File.expand_path(asset),  asset_link )
+	end
+      end
+    end # convert_to_dcp_image_format_2( n_total_images, image_sequence, image_sequence_conformdir, files, output_type, dcp_image_sequence_name )
+  
+  end
+	
+  
   class DCPFunctions
-    def initialize
+    def initialize( dcp_graphics_format_functions_classname )
       @logger = Logger::Logger.instance
       @imagecount = 0
       @imagecount_mutex = Mutex.new
-      @N_THREADS = OptParser::Optparser.get_options.n_threads
+      @dcp_graphics_format_functions = DCPFunctions_M.const_get(dcp_graphics_format_functions_classname).new( self )
     end
     def inc_imagecount
       @imagecount_mutex.synchronize do
@@ -60,13 +153,13 @@ module DCPFunctions
     
     private 
     
-  end
+  end # class DCPFunctions
   
   
   class MXFInterOpDCPFunctions < DCPFunctions
     attr_reader :dimensions
-    def initialize
-      super()
+    def initialize( dcp_graphics_format_functions_classname = dcp_graphics_format_functions_classnames[ CinemaslidesCommon::MPEG_GRAPHICS_FORMAT ] )
+      super( dcp_graphics_format_functions_classname )
       @dimensions = Hash.new
       @dimensions[CinemaslidesCommon::ASPECT_CHOICE_FLAT]      = [960, 519] # 1.85
       @dimensions[CinemaslidesCommon::ASPECT_CHOICE_SCOPE]     = [960, 402] # 2.38694638694639
@@ -139,23 +232,11 @@ module DCPFunctions
     def create_blackframe (file, dimensions)
        ShellCommands.p_IM_black_frame( file, dimensions )
     end
-    def convert_to_dcp_image_format (image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
-       convert_to_dcp_image_format_single_thread(image_sequence, image_sequence_conformdir, output_type,dcp_image_sequence_name )
+    
+    def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
+      @dcp_graphics_format_functions.convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
     end
-    def convert_to_dcp_image_format_single_thread(image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
-      # TODO
-      #
-      #mencoder mf://cinemaslides_3_2011-01-23T14:39:18+01:00_fullpreview/conform/*.jpg -mf w=1920:h=1080:fps=24:type=jpg -ovc lavc -lavcopts vcodec=mjpeg -o ast.mpg
-      #
-      x,y = dimensions[ CinemaslidesCommon::ASPECT_CONTAINER ].collect{|x| x * output_type.size.split( '' ).first.to_i}
 
-      # `mencoder mf://#{File.join(image_sequence_conformdir, '*.jpg')} -mf w=#{x}:h=#{y}:fps=#{output_type.fps}:type=jpg -ovc lavc -lavcopts vcodec=mjpeg -o #{dcp_image_sequence_name}`
-      
-      # `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(image_sequence_conformdir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y} -qscale 1 -qmin 1 -intra -r #{output_type.fps} -an #{dcp_image_sequence_name}`
-      
-      `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(image_sequence_conformdir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y}  -b 40000k -intra -r #{output_type.fps} -an #{dcp_image_sequence_name}`
-      
-    end
     def dcp_image_sequence_basename
       "video.#{dcp_image_sequence_suffix}"
     end
@@ -166,13 +247,13 @@ module DCPFunctions
       "_." + suffix
     end
 
-  end
+  end # class MXFInterOpDCPFunctions < DCPFunctions
   
                                 
   class SMPTEDCPFunctions < DCPFunctions
     attr_reader :dimensions
-    def initialize
-      super()
+    def initialize( dcp_graphics_format_functions_classname = dcp_graphics_format_functions_classnames[ CinemaslidesCommon::JPEG2000_GRAPHICS_FORMAT ] )
+      super( dcp_graphics_format_functions_classname )
       @dimensions = Hash.new
       @dimensions[CinemaslidesCommon::ASPECT_CHOICE_FLAT]      = [ 999, 540] # 1.85
       @dimensions[CinemaslidesCommon::ASPECT_CHOICE_SCOPE]     = [1024, 429] # 2.38694638694639
@@ -245,65 +326,9 @@ module DCPFunctions
     end                           
     
     def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
-      Dir.mkdir( dcp_image_sequence_name )
-      ## JPEG 2000 encoding
-      @logger.info( "Encode to JPEG 2000" )
-      filemask = File.join( image_sequence_conformdir, "*.#{ image_sequence.output_format }" )
-      files = Dir.glob( filemask ).sort
-            
-      threads = CinemaslidesCommon::process_elements_multithreaded( files ){|i, indices|
-            start_index, end_index = indices[i]
-	    @logger.debug("START ENCODING THREAD")
-	    convert_to_dcp_image_format_2( files.size(), image_sequence, image_sequence_conformdir, files[start_index..end_index], output_type, dcp_image_sequence_name )
-      }
-      
-    end # def convert_to_dcp_image_format (image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name)
-                                    
-    def convert_to_dcp_image_format_2( n_total_images, image_sequence, image_sequence_conformdir, files, output_type, dcp_image_sequence_name )
-	
-      previous_asset = ""
-      
-      encoder = Encoder.const_get(encoder_classnames[output_type.jpeg2000_codec]).new(
-	size = output_type.size,
-	stereo = ( output_type.dcp_wrap_stereoscopic or output_type.three_D ),
-	fps = image_sequence.fps)
-      
-      files.each do |file|
-	inc_imagecount()
-	asset_link = File.join( dcp_image_sequence_name, File.basename( file ).gsub( '.tiff', '' ) + '.' + dcp_image_sequence_suffix )
-	
-#	if File.dirname( File.readlink( file ) ) == image_sequence_conformdir 
-# 	1st file is always a link to the asset depot
-# 	problematic also because it should be
-#	if File.dirname( File.readlink( file ) ) == File.expand_path(image_sequence_conformdir)
-	if (!previous_asset.eql?(""))
-	  	  
-	  @logger.debug( "link previous_asset = #{ previous_asset }, asset_link = #{ asset_link }" )
-	  File.symlink( File.expand_path(previous_asset), asset_link ) 
-	  @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
-	  @logger.debug( "Skip (Full level): #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
-	else
-	  
-	  # helps to speed up the check_for_asset calls
-	  # increases the chances that digest_over_file_basename is called in Module Asset
-	  # instead of digest_over_content
-	  file = CSTools.dereference_links( file )
-	  
-	  asset, todo = image_sequence.asset_functions.check_for_asset( file, dcp_image_sequence_suffix, level = nil ) # possible "Skip" message only with debug verbosity
-	  previous_asset = asset
-#	  @logger.debug( "TODO = #{ todo }, @options.output_format = #{ @options.output_format } ")
-	  if todo
-	    @logger.cr( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ get_imagecount } of #{n_total_images })" )
-	    @logger.debug( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
-	    @logger.debug("@options.jpeg2000_codec = #{ output_type.jpeg2000_codec }")
-	    @logger.debug("Encode  >>#{file}<< to >>#{asset}<<. ");
-	    encoder.encode( file, asset )
-	  end
-	  File.symlink( File.expand_path(asset),  asset_link )
-	end
-      end
-    end # convert_to_dcp_image_format_2( n_total_images, image_sequence, image_sequence_conformdir, files, output_type, dcp_image_sequence_name )
-    
+      @dcp_graphics_format_functions.convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
+    end
+        
     def dcp_image_sequence_basename
       dcp_image_sequence_suffix
     end

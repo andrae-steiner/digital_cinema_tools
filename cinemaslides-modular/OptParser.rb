@@ -34,7 +34,7 @@ class Optparser
     options.fps_asdcp_choices = FPS_ASDCP_CHOICES # 24000/1001 not DCI compliant but shows up in asdcplib. Why?
     options.jpeg2000_codec = ENCODER_CHOICE_OJ
     options.jpeg2000_codec_choices = [ ENCODER_CHOICE_OJ_TM, ENCODER_CHOICE_OJ, ENCODER_CHOICE_KAKADU  ]
-    options.output_format = 'jpg'
+    options.output_format = MXFI_INTERMEDIATE_FILE_SUFFIX
     options.black = 0.0
     options.black_leader = NIL
     options.black_tail = NIL
@@ -43,7 +43,7 @@ class Optparser
     options.audio_bps = 24
     options.audio_bps_choices = [ AUDIO_BPS_16, AUDIO_BPS_24 ]
     options.dcp_title = DCP_TITLE
-    options.issuer = ENV[ 'USER' ] + '@' + ShellCommands::ShellCommands.hostname_command.chomp
+    options.issuer = ENV[ 'USER' ] + '@' + ShellCommands.hostname_command.chomp
     options.annotation = "#{ AppName } " + DateTime.now.to_s
     options.dcp_kind = DCP_KIND_TEST
     options.dcp_kind_choices = [   DCP_KIND_FEATURE, DCP_KIND_TRAILER, DCP_KIND_TEST, DCP_KIND_TEASER, DCP_KIND_RATING, 
@@ -171,7 +171,7 @@ BANNER
       opts.on( '-j', '--jpeg2000-codec codec', String, "Use one of #{ pretty_print_choices( options.jpeg2000_codec_choices )  }  for JPEG 2000 encoding (Default: #{ENCODER_CHOICE_OJ})" ) do |p|
         options.jpeg2000_codec = p.downcase
       end
-      opts.on( '-f', '--output-format suffix', String, "Use 'jpg' or any other image related suffix (Default: jpg for previews, tiff for DCPs)" ) do |p|
+      opts.on( '-f', '--output-format suffix', String, "Use 'jpg' or any other image related suffix (Default: #{MXFI_INTERMEDIATE_FILE_SUFFIX} for previews, #{SMPTE_INTERMEDIATE_FILE_SUFFIX} for DCPs)" ) do |p|
         options.output_format = p
       end
       opts.on( '-b', '--black seconds', Float, 'Length of black leader and tail (Default: 0)' ) do |p|
@@ -353,6 +353,10 @@ EXAMPLES
 	# display the system generated error message  
 	puts msg  
 	options.invalid_options_found = TRUE
+      rescue OptionParser::MissingArgument => msg  
+	# display the system generated error message  
+	puts msg  
+	options.invalid_options_found = TRUE
       end    
     end
         
@@ -511,10 +515,10 @@ EXAMPLES
   
   def self.set_output_format_option
     if @@options.output_type == OUTPUT_TYPE_CHOICE_DCP
-      @@options.output_format = 'tiff'
+      @@options.output_format = SMPTE_INTERMEDIATE_FILE_SUFFIX
     end
     if @@options.dcp_norm == OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM
-      @@options.output_format = 'jpg'
+      @@options.output_format = MXFI_INTERMEDIATE_FILE_SUFFIX
     end
   end
 

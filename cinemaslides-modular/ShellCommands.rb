@@ -14,8 +14,8 @@ module ShellCommands
     def self.soxi_D_command( file )
       `soxi -D #{ file }`
     end
-    def self.sox_splice_command( *list )
-      `sox #{ list.join(" ") } splice`
+    def self.sox_splice_command( *file_list )
+      `sox #{ file_list.join(" ") } splice`
     end
     def self.sox_trim_command( sequence_audio_asset_tmp, sequence_audio_asset, image_sequence_length_hms)
       `sox #{ sequence_audio_asset_tmp } #{ sequence_audio_asset } trim 0 #{ image_sequence_length_hms }`
@@ -45,8 +45,11 @@ module ShellCommands
     # \\\" is because of the double shell call
     # 
     def self.dc_thumbprint_string(cert)
-      ShellCommands::dc_thumbprint("<(echo -e \\\"#{ cert.gsub("\n","\\n") }\\\")")
-#      ShellCommands::dc_thumbprint("<(echo -e #{ cert.gsub("\n","\\n") })")
+      tmp_file = Tempfile.new( 'cinemaslides-' )
+      File.open( tmp_file.path, 'w' ) { |f| f.write cert ; f.close }
+      ShellCommands::dc_thumbprint( tmp_file.path )
+#      ShellCommands::dc_thumbprint("<(echo -e \\\"#{ cert.gsub("\n","\\n") }\\\")")
+##      ShellCommands::dc_thumbprint("<(echo -e #{ cert.gsub("\n","\\n") })")
     end
     def self.display_command( file )
       `display #{ file }`
@@ -140,9 +143,10 @@ module ShellCommands
 	-depth 8 \
       #{ thumbasset }`
     end
+    # thumbs is an Array of filenames
     def self.IM_montage(thumbs, source_length, thumbs_dimensions, thumbs_asset)
       tiles_x = Math.sqrt( source_length ).ceil
-      `montage #{ thumbs } \
+      `montage #{ thumbs.join( ' ' ) } \
 	-mode Concatenate \
 	-tile #{ tiles_x }x \
 	-border 1 \
@@ -151,8 +155,7 @@ module ShellCommands
       #{ thumbs_asset }`
     end
     def self.IM_composite_command( image1, level, image2, depth_parameter, compress_parameter, output)
-      @logger = Logger::Logger.instance
-      `composite -type TrueColor #{ (image1.end_with?('.jpg')) ? ' -quality 92' : '' } #{ image1 } -dissolve #{ level } #{ (image2.end_with?('.jpg')) ? ' -quality 92' : '' }  #{ image2 } #{ depth_parameter } #{ compress_parameter } #{ (output.end_with?('.jpg')) ? ' -quality 92' : '' } #{ output }`
+      `composite -type TrueColor #{ (image1.end_with?('.jpg')) ? ' -quality 92' : '' } #{ image1 } -dissolve #{ level } #{ (image2.end_with?('.jpg')) ? ' -quality 92' : '' }  #{ image2 } #{ depth_parameter } #{ compress_parameter } #{ (output.end_with?('.jpg')) ? ' -quality 92' : '' } #{ output } `
     end
     def self.IM_composite_rotate_command( image1, rotation, level, image2, depth_parameter, compress_parameter, output)
       `convert #{image1} -background black -geometry 1920x1080!  -rotate #{ rotation } miff:- | composite -type TrueColor miff:- -dissolve #{ level } #{ image2 } #{ depth_parameter } #{ compress_parameter } #{ output }`

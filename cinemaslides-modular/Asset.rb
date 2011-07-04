@@ -7,28 +7,46 @@ module Asset
   ShellCommands = ShellCommands::ShellCommands
   
   class AssetFunctions
+    attr_reader :asset_mutexes
     def initialize(output_type_obj)
       @output_type_obj = output_type_obj
       @logger = Logger::Logger.instance
+      @asset_mutexes = Hash.new
+      @check_asset_mutex = Mutex.new
     end
-    
-    # asset match is based on a /conform's/ IM signature + dimensions + (level unless jpeg 2000 codestream requested) + (jpeg2000_codec + fps if jpeg 2000 codestream is requested) + suffix
-    # not any more, because this is soooo time consuming
-    def check_for_asset( filename_s, suffix, level = nil )
-      check_for_asset_2( filename_s, suffix, filename_to_asset_conversion_proc, level)
+            
+    def create_asset( filename_s,  suffix, level = nil , &block)
+      return create_asset_2( filename_s,  suffix, filename_to_asset_conversion_proc, level  , &block)
     end
-    
         
     private
-  
-    def check_for_asset_2( filename_s, suffix, filename_to_asset_conversion_proc, level = nil )
-      assetname, origin = filename_to_asset_conversion_proc.call( filename_s, suffix, level)
-      todo = !File.exists?( assetname )
-      if !todo
-	    @logger.debug( "Skip: Asset exists (#{ origin } -> #{ File.basename( assetname ) })" )
+    
+    def filename_to_asset_conversion_proc
+      raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"
+    end
+
+    # asset match is based on a /conform's/ IM signature + dimensions + (level unless jpeg 2000 codestream requested) + (jpeg2000_codec + fps if jpeg 2000 codestream is requested) + suffix
+    # not any more, because this is soooo time consuming
+    def create_asset_2( filename_s,  suffix, filename_to_asset_conversion_proc, level = nil , &block)
+      asset = ""; todo = TRUE
+      @check_asset_mutex.synchronize do	
+	asset, origin = filename_to_asset_conversion_proc.call( filename_s, suffix, level)
+	todo = !File.exists?( asset )
+	@logger.debug( "T #{Thread.current[:id]}:asset = #{asset}")
+	@logger.debug( "T #{Thread.current[:id]}:todo  = #{todo}")
+	if !todo
+	      @logger.debug( "T #{Thread.current[:id]}: Skip: Asset exists (#{ origin } -> #{ File.basename( asset ) })" )
+	end
+	@asset_mutexes[asset] = Mutex.new unless @asset_mutexes.has_key?(asset)
       end
-      return assetname, todo
-    end  
+      @asset_mutexes[asset].synchronize do
+	if todo
+	  yield asset
+	end
+      end
+      return asset
+    end
+    
     def digest_over_content( file )
       Digest::MD5.hexdigest( File.read( file ) )
     end
@@ -48,19 +66,22 @@ module Asset
       @bps = bps
       @channelcount = channelcount
     end
-    def check_for_silence_asset( suffix, seconds, level = nil )
+    
+    def create_silence_asset( suffix, seconds, level = nil, &block )
       suffix2 = seconds.to_s + '_' + @samplerate.to_s + '_' + @bps.to_s + '_' + @channelcount.to_s + suffix 
-      check_for_asset_2( CinemaslidesCommon::SILENCE_FILENAME_PREFIX, suffix2, simple_conversion_proc, level = nil )
+      return create_asset_2( CinemaslidesCommon::SILENCE_FILENAME_PREFIX, suffix2, simple_conversion_proc, level, &block)
     end
-    def check_for_sequence_audio_asset (conformed_audio_list, image_sequence_length_seconds, suffix)
+    
+    def create_sequence_audio_asset (conformed_audio_list, image_sequence_length_seconds, suffix, &block )
       set = Array.new
       conformed_audio_list.each do |e|
 	set << File.basename( e )
       end
       filename = "#{ digest_over_string( set.join ) }"
       suffix2 = "_sequence_#{ image_sequence_length_seconds }#{ suffix }"
-      check_for_asset_2( filename, suffix2, simple_conversion_proc, level = nil )
+      return create_asset_2( filename, suffix2, simple_conversion_proc, nil, &block )
     end
+    
     private
     def simple_conversion_proc
       Proc.new do |filename_s, suffix, level |
@@ -85,8 +106,8 @@ module Asset
       @resize = resize
       @expanded_assetsdir = File.expand_path(@output_type_obj.assetsdir)
     end
-    def check_for_black_asset( suffix, level = nil )
-      check_for_asset_2( CinemaslidesCommon::FILENAME_BLACK_FRAME, suffix, filename_to_asset_conversion_proc, nil )
+    def create_black_asset( suffix, &block )
+      return create_asset( CinemaslidesCommon::FILENAME_BLACK_FRAME, suffix,  level, &block )
     end
     private
     def filename_to_asset_conversion_proc
@@ -103,13 +124,7 @@ module Asset
 	assetname, origin = assetname, origin
       end
     end
-    # TODO: take care: this is only a filenamehash
-    # if you want an exact hash for only the image date use
-    # `identify -format '%#' #{ filename }` instead
-    def filename_hash( file)
-      ShellCommands.sha1sum_command( file )
-    end
-    
+
     # Thanks Wolfgang
     # entry into the asset depot will trigger a relatively strong and good enough md5 digest over content
     # members of the asset depot will trigger a cheaper and good enough digest over filename (which is in part an md5 digest)
@@ -126,9 +141,9 @@ module Asset
   end
   
   class ThumbAssetFunctions < AssetFunctions
-    def check_for_montage_asset( filename_s, suffix, level = nil )
-      check_for_asset_2( filename_s, suffix, filename_to_montage_asset_conversion_proc, level)
-    end
+    def create_montage_asset( filename_s, suffix, level = nil, &block )
+      return create_asset_2( filename_s, suffix, filename_to_montage_asset_conversion_proc, level, &block )
+    end    
     private 
     def filename_to_montage_asset_conversion_proc
       Proc.new do |filename_s, suffix, level |

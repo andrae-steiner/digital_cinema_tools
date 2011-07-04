@@ -508,20 +508,16 @@ module DCP
 	            # xml[ 'msp_cpl' ].MainStereoscopicPicture_ does not work here
 	            # Solution see under 'def xml'
 		    xml.MainStereoscopicPicture_( "xmlns:#{CinemaslidesCommon::MAIN_STEREOSCOPIC_NAMESPACE}" => @dcp_functions.cpl_3d_ns ) {
-		      mainpicture_fragment(image_asset, xml)                                                                                                      
+		      mainpicture_fragment( image_asset, xml )                                                                                                      
 		    } # MainStereoscopicPicture
 		  else
 		    xml.MainPicture_ {
-	              mainpicture_fragment(image_asset, xml)               
+	              mainpicture_fragment( image_asset, xml )               
 		    } # MainPicture
 		  end # if 
 		  unless audio_asset.nil?
 		    xml.MainSound_ {
-		      xml.Id_ "urn:uuid:#{ audio_asset.id }"
-		      xml.EditRate_ audio_asset.edit_rate
-		      xml.IntrinsicDuration_ audio_asset.intrinsic_duration
-		      xml.EntryPoint_ audio_asset.entry_point  # FIXME
-		      xml.Duration_ audio_asset.duration
+	              main_elements_common( audio_asset, xml )
 		      if audio_asset.encrypted
 			xml.KeyId_ "urn:uuid:#{ audio_asset.key_id }"
 			xml.Hash_ audio_asset.asset_hash
@@ -531,11 +527,7 @@ module DCP
 		  unless  subtitle_asset.nil?
 	            xml.MainSubtitle_ {
 	              # TODO is this xml code OK ???
-		      xml.Id_ "urn:uuid:#{ subtitle_asset.id }"  # TODO is this ok ???
-		      xml.EditRate_ subtitle_asset.edit_rate
-		      xml.IntrinsicDuration_ subtitle_asset.intrinsic_duration
-		      xml.EntryPoint_ subtitle_asset.entry_point
-		      xml.Duration_ subtitle_asset.duration
+	              main_elements_common( subtitle_asset, xml )
 		      xml.Hash_ subtitle_asset.asset_hash
 	            }  # MainSubtitle
 		  end # unless
@@ -567,13 +559,16 @@ module DCP
     
     private
     
+    def main_elements_common( asset, xml )
+      xml.Id_ "urn:uuid:#{ asset.id }"
+      xml.EditRate_ asset.edit_rate 
+      xml.IntrinsicDuration_ asset.intrinsic_duration
+      xml.EntryPoint_ asset.entry_point
+      xml.Duration_ asset.duration
+    end
     
-    def mainpicture_fragment(image_asset, xml)
-      xml.Id_ "urn:uuid:#{ image_asset.id }"
-      xml.EditRate_ image_asset.edit_rate 
-      xml.IntrinsicDuration_ image_asset.intrinsic_duration
-      xml.EntryPoint_ image_asset.entry_point
-      xml.Duration_ image_asset.duration
+    def mainpicture_fragment( image_asset, xml )
+      main_elements_common( image_asset, xml )
       if image_asset.encrypted
 	xml.KeyId_ "urn:uuid:#{ image_asset.key_id }"
 	xml.Hash_ image_asset.asset_hash
