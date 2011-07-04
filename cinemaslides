@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-AppVersion = "v0.2011.06.07"
+AppVersion = "v0.2011.06.14"
 AppName = File.basename( $0 )
 #
 # Wolfgang Woehl v0.2010
@@ -404,7 +404,6 @@ def check_external( requirements )
     exitstatus = system "which #{ tool } > /dev/null 2>&1"
     case exitstatus
     when TRUE
-      @logger.debug( "Available: #{ tool }" )
       available_tools << tool
     when FALSE
       @logger.debug( "Missing: #{ tool }" )
@@ -472,6 +471,12 @@ def cleanup_workdir( keep )
       if File.dirname( @dcpdir ) != @workdir
         `rm -rf #{ @workdir }`
       end
+    end
+    # Remove temporary safe links (for source filenames with spaces and rogue chars)
+    # Alternatively we could iterate @source and act on difference between original
+    # filename and the attached item (the safe link) but wth, really. KISS ftw
+    Dir.glob( File.join( @assetsdir, 'tmp-safe-link-*' ) ).each do |link|
+      File.delete link
     end
   end
 end
@@ -696,16 +701,16 @@ def digest_over_name( file )
 end
 
 
-# entry into the asset depot will trigger a relatively strong and good enough md5 digest over content
+# entry into the asset depot will trigger a relatively strong and good enough md5 digest over full content (including metadata)
 # members of the asset depot will trigger a cheaper and good enough digest over filename (which is in part an md5 digest)
 #   + dimensions + (level unless jpeg 2000 codestream requested) + (encoder + fps if jpeg 2000 codestream is requested) + suffix
 def check_for_asset( filename_s, suffix, fps, level = nil )
   # 2 images from crossfade?
   if filename_s.size == 2
     if File.dirname( filename_s.first ) != @assetsdir
-      id = digest_over_content( filename_s[0] ) + '_' + digest_over_content( filename_s[1] )
+      id = digest_over_content( filename_s[ 0 ] ) + '_' + digest_over_content( filename_s[ 1 ] )
     else
-      id = digest_over_name( filename_s[0] ) + '_' + digest_over_name( filename_s[1] )
+      id = digest_over_name( filename_s[ 0 ] ) + '_' + digest_over_name( filename_s[ 1 ] )
     end
     origin = [ File.basename( filename_s[ 0 ] ), File.basename( filename_s[ 1 ] ) ].join( ' X ' )
   else # not from crossfade
@@ -1509,6 +1514,17 @@ else
   @cinemaslidesdir = File.expand_path( ENV[ 'CINEMASLIDESDIR' ] )
   @logger.debug( "CINEMASLIDESDIR is set to #{ @cinemaslidesdir }" )
 end
+if confirm_or_create( @cinemaslidesdir ) == TRUE
+  @logger.debug( "#{ @cinemaslidesdir } is writeable" )
+else
+  @logger.critical( "#{ @cinemaslidesdir } is not writeable. Check your mounts or export CINEMASLIDESDIR to point to a writeable location." )
+  exit
+end
+# Set up @assetsdir early for argv/@source filename checks.
+# Filenames with spaces or rogue chars will
+# be attached to temporary safe links in @assetsdir
+@assetsdir = File.join( @cinemaslidesdir, "assets" )
+Dir.mkdir( @assetsdir ) unless File.exists?( @assetsdir )
 
 
 ### KDM mode
@@ -1915,10 +1931,83 @@ if @output_type == "dcp"
 end
 
 
+# File#readlink!
+# See http://log.guidoderosa.net/2009/06/make-ruby-method-filereadlink-behave.html
+#
+# While File.readlink behaves like the analogous shell command,
+# File.readlink! behaves like 'readlink -f'
+#
+class File
+  def File.readlink!( path )
+    path = File.expand_path( path )
+    dirname = File.dirname( path )
+    readlink = File.readlink( path )
+    if not readlink =~ /^\// # it's a relative path
+      readlink = dirname + '/'+ readlink # make it absolute
+    end
+    readlink = File.expand_path( readlink ) # eliminate this/../../that
+    if File.symlink?( readlink )
+      return File.readlink!( readlink ) # recursively follow symlinks
+    else
+      return readlink
+    end
+  end
+end
+
+
+def safe_link( filename )
+  tmp_safe_link = File.join( @assetsdir, 'tmp-safe-link-' + digest_over_name( File.basename( filename ) ) )
+  # should be pruned on each run but won't be if we don't reach cleanup_workdir
+  unless File.exists?( tmp_safe_link )
+    File.symlink( filename, tmp_safe_link ) 
+  end
+  return tmp_safe_link
+end
+
+
+def collect_real_files( candidates, real_files )
+  real_files ||= []
+  candidates.each do |candidate|
+    ftype = File.ftype candidate
+    case ftype
+    when 'link'
+      collect_real_files( File.readlink!( candidate ), real_files )
+    when 'directory'
+      collect_real_files( Dir.glob( File.join( candidate, '*' ) ).sort, real_files )
+    when 'file'
+      if candidate =~ /[^a-zA-Z0-9\/\-_,.+]/
+        real_files << safe_link( candidate )
+      else 
+        real_files << candidate
+      end
+    end
+  end
+  return real_files.flatten
+end
+
+
+def safeguard_fileargs( list )
+  real_files = Array.new
+  not_readable = Array.new
+  list.each do |item|
+    item = File.expand_path( item )
+    if File.exists?( item )
+      real_files = collect_real_files( item, real_files )
+    else
+      not_readable << item
+    end
+  end
+  return real_files.flatten, not_readable
+end
+
+
+# Handle filenames with spaces and rogue chars by replacing them with 
+# temporary links in @assetsdir.
+@source, not_readable = safeguard_fileargs( ARGV )
+
+
 # check provided files for readability, type and validity
 # come up with 3 lists: image files, audio files, unusable files
-@source = ARGV
-# FIXME filenames with spaces won't work. bummer
 @source_audio = Array.new
 if options.dont_check == TRUE ####
   if @source.empty?
@@ -1926,31 +2015,12 @@ if options.dont_check == TRUE ####
     exit
   end
 else # check files
-  # remove un-readable elements
-  not_readable = Array.new
-  @source_tmp = Array.new
-  @source.each do |element|
-    if File.exists?( element )
-      ftype = File.ftype( element )
-      if ftype == 'directory'
-        more = Dir.glob( "#{ element }/*" ).sort # this breaks fast (subdirs)
-        @source_tmp << more
-      else
-        @source_tmp << element
-      end
-    else
-      not_readable << element
-      @logger.debug( "Not readable: #{ element }" )
-    end
-  end
-  @source = @source_tmp.flatten.compact.dup
   
   # check type (image/audio)
   no_decode_delegate = Array.new
   drops = FALSE
   @source_tmp = @source.clone
   @source.each do |file|
-    @logger.critical( file )
     image_identify = `identify -format '%m' #{ file } 2>/dev/null`.chomp
     if image_identify.empty?
       audio_identify = `soxi -V0 -t #{ file }`.chomp
@@ -1981,6 +2051,7 @@ else # check files
       @logger.debug( "#{ image_identify } #{ dimensions }: #{ file }" )
     end
   end
+  not_readable.flatten.compact!
   if not_readable.size > 0
     drops = TRUE
     @logger.debug( "Not readable: #{ not_readable.join( ', ' ) }" )
@@ -1999,7 +2070,7 @@ else # check files
     if options.dont_drop == TRUE
       exit
     else
-      @logger.debug( "Dropped some unuseable files. Say '--dont-drop' to exit in that case." )
+      @logger.debug( "Dropped some unusable files. Say '--dont-drop' to exit in that case." )
     end
   end
   @source = @source_tmp.dup
@@ -2076,23 +2147,14 @@ image_sequence_frames = sequence_frames - ( ( black_leader + black_tail ) * fps 
 
 
 # set up directories to write output to. These locations are created upon demand only, hence the clustered mkdir's. FIXME
+# @assetsdir is done early above for potential temporary safe links (filenames with spaces and rogue chars)
 @workdir = File.join( @cinemaslidesdir, "#{ File.basename( $0 ) }_#{ timestamp }_#{ @output_type }" )
 @conformdir = File.join( @workdir, "conform" )
 @j2cdir = File.join( @workdir, "j2c" )
 @thumbsdir = File.join( @cinemaslidesdir, "thumbs" )
-@assetsdir = File.join( @cinemaslidesdir, "assets" )
 @assetsdir_audio = File.join( @cinemaslidesdir, 'assets-audio' )
 @keysdir = File.join( @cinemaslidesdir, 'keys' )
 
-if confirm_or_create( @cinemaslidesdir ) == TRUE
-  @logger.debug( "#{ @cinemaslidesdir } is writeable" )
-else
-  @logger.critical( "#{ @cinemaslidesdir } is not writeable. Check your mounts or export CINEMASLIDESDIR to point to a writeable location." )
-  exit
-end
-unless @source.empty? # TODO audio-only DCP
-  Dir.mkdir( @assetsdir ) unless File.exists?( @assetsdir )
-end
 unless @source_audio.empty?
   Dir.mkdir( @assetsdir_audio ) unless File.exists?( @assetsdir_audio )
 end
@@ -2421,7 +2483,7 @@ when "dcp"
   
   files.each do |file|
     counter += 1
-    asset_link = File.join( @j2cdir, File.basename( file ).gsub( '.tiff', '' ) + '.j2c' )
+    asset_link = File.join( @j2cdir, File.basename( file ).gsub( /.tiff$/, '.j2c' ) )
     if File.dirname( File.readlink( file ) ) == @conformdir # 1st file is always a link to the asset depot
       File.link( previous_asset, asset_link ) 
       @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ counter } of #{ files.size })" )
@@ -2581,11 +2643,6 @@ end # End Create DCP
 
 TODO = <<TODO
 
-FIXME source filenames with spaces:
-  a) shell removes protection and hands over unprotected args
-  b) cinemaslides/ruby would have to re-protect spaces when calling shell stuff (convert etc.)
-     but needs unprotected filenames for internal stuff
-  some on-the-fly protection needed here
 FIXME certificate handling and KDM mode, although working, need re-design to allow for more flexibility
 FIXME output some basic help message when app is called without any args. as it is app merely utters 'No image files specified'
 FIXME calculates message digest twice when building an encrypted package (for CPL and PKL)
