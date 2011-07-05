@@ -302,13 +302,9 @@ module ImageSequence
 	@source[start_index..end_index].each do |source_element|
 	  incr_imagecount()
 	  image = conform( source_element )
-	  if !@asset_functions.asset_mutexes.has_key?(image)
-	    @logger.info("T #{Thread.current[:id]}: no key for @asset_functions.asset_mutexes[\"#{image}\"]. This should not happen. Exiting")
-	    exit
-	  end                                                                      
-	  @asset_functions.asset_mutexes[image].synchronize do
+	  @asset_functions.do_synchronized( image ) {
 	    fade_in_hold_fade_out( image, @fade_in_time, @duration, @fade_out_time, file_sequence )
-	  end
+          }
        	end
       }
     end
@@ -344,14 +340,13 @@ module ImageSequence
 	    image1 = keeper
 	    image2 = conform( @source[ start_index + index + 1 ] )
 	    keeper = image2
-	    full_level( image1,  @duration, file_sequence )
-            if !@asset_functions.asset_mutexes.has_key?(image2)
-	      @logger.info("T #{Thread.current[:id]}: no key for @asset_functions.asset_mutexes[\"#{image2}\"]. This should not happen. Exiting")
-              exit
-            end                                                                      
-            @asset_functions.asset_mutexes[image2].synchronize do
+            # image1 and image2 are file names
+            @asset_functions.do_synchronized( image1 ) {
+	      full_level( image1,  @duration, file_sequence )
+            }
+            @asset_functions.do_synchronized( image2 ) {
 	      crossfade( image1, image2,  @crossfade_time, file_sequence )
-            end
+            }
 	  end
 	  if (thread_i == indices.length - 1)
 	    incr_imagecount()

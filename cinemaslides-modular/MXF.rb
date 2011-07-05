@@ -46,7 +46,7 @@ module MXF
     end
     
     def write_asdcp_track( file_par )
-      opts_params_args = "#{ @dcp_functions.mxf_UL_value_option } #{ @dcp_encrypt ? '-e -k ' + @key + ' -j ' + @key_id : '-E' } -p #{ @fps } -a #{ @mxf_uuid } -c #{ @mxf_file_name } #{ file_par } "
+      opts_params_args = "#{ @dcp_functions.mxf_UL_value_option } #{ @dcp_encrypt ? '-e -k ' + @key + ' -j ' + @key_id : '-E' } -p #{ @fps } -a #{ @mxf_uuid } -c #{ CSTools.shell_escape( @mxf_file_name ) } #{ file_par } "
       ShellCommands.asdcp_test_create_mxf( opts_params_args )
     end
     

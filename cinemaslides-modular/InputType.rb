@@ -59,8 +59,8 @@ module InputType
 #      @audio_from_av = "/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"
       # TODO create a method in ShellCommands for this
       # FIXME do not hard code fps
-      `ffmpeg -y -i "#{ @avfile }" -an -r 25   -qscale 1 -qmin 1 -intra  -pix_fmt yuv420p -b 50000k #{File.join(@image_output_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+".png")}`
-      `ffmpeg -y -i "#{ @avfile }" -acodec pcm_s24le -r 25  -ar 48000 #{ @audio_from_av }`
+      `ffmpeg -y -i #{CSTools.shell_escape(@avfile)} -an -r 25   -qscale 1 -qmin 1 -intra  -pix_fmt yuv420p -b 50000k #{File.join(@image_output_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+".png")}`
+      `ffmpeg -y -i #{CSTools.shell_escape(@avfile)} -acodec pcm_s24le -r 25  -ar 48000 #{ @audio_from_av }`
       
 #      return Dir.glob( "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00/*" ).sort,  ["/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"], nil, TRUE
       

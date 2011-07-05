@@ -7,7 +7,6 @@ module Asset
   ShellCommands = ShellCommands::ShellCommands
   
   class AssetFunctions
-    attr_reader :asset_mutexes
     def initialize(output_type_obj)
       @output_type_obj = output_type_obj
       @logger = Logger::Logger.instance
@@ -19,6 +18,14 @@ module Asset
       return create_asset_2( filename_s,  suffix, filename_to_asset_conversion_proc, level  , &block)
     end
         
+    def do_synchronized( image,  &block)
+      if !@asset_mutexes.has_key?(image)
+	@logger.info("T #{ Thread.current[:id] }: no key for @asset_functions.asset_mutexes[\"#{ image }\"]. This should not happen. Exiting")
+	exit
+      end
+      yield if block_given? 
+    end
+    
     private
     
     def filename_to_asset_conversion_proc

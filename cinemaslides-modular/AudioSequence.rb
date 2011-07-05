@@ -94,7 +94,7 @@ module AudioSequence
       @sequence_audio_asset = 
 	  @asset_functions.create_sequence_audio_asset( conformed_audio_list, image_sequence_length_seconds, "_" + CinemaslidesCommon::FILE_SUFFIX_PCM ){|asset|
 	    sequence_audio_asset_tmp = File.join( @output_type_obj.assetsdir_audio, 'tmp-' + File.basename( asset ) )
-	    ShellCommands.sox_splice_command( conformed_audio_list.join( ' ' ), sequence_audio_asset_tmp )
+	    ShellCommands.sox_splice_command( conformed_audio_list, sequence_audio_asset_tmp )
 	    ShellCommands.sox_trim_command(sequence_audio_asset_tmp, asset, image_sequence_length_hms)
 	    File.delete( sequence_audio_asset_tmp )
 	  }

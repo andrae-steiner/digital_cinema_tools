@@ -221,7 +221,7 @@ module DCPFunctions_M
     def convert_resize_extent_color_specs( image, filename, resize, dimensions )
       image_ending = image.gsub(/.*\./, "")
       filename_ending = filename.gsub(/.*\./, "")
-      identify1 = `identify -ping #{image}`.split(" ")
+      identify1 = `identify -ping #{CSTools.shell_escape( image )}`.split(" ")
       @logger.debug( "image_ending = #{image_ending}, filename_ending = #{filename_ending}" )
       @logger.debug( "identify1[2] = #{identify1[2]}, dimensions = #{dimensions}" )
       ShellCommands.p_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions)
