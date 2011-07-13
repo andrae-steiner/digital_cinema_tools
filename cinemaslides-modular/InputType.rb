@@ -9,10 +9,10 @@ module InputType
   ShellCommands = ShellCommands::ShellCommands
   
   class InputType
-    def initialize (source)
+    def initialize (source, output_type_obj)
       @logger = Logger::Logger.instance
       @source = source
-      @N_THREADS = OptParser::Optparser.get_options.n_threads
+      @output_type_obj = output_type_obj
     end
     # seperates files into three categories
     # imagesequence, audio and files with no code delegate
@@ -29,50 +29,51 @@ module InputType
   end
   
   # TODO this is just do show, that it is possible, nothing final
-  # fps fixed to 24, should be obtained from avcoontainer
-  # Maybe better name for image_output_dir and audio_from_av should be chosen.
-  # The concept of assets should also be chosen here, that means an image sequence 
-  # should be created only once
   class AVContainerInputType < InputType
-    def initialize (avfile, dont_check, dont_drop, audio_only, image_sequence_class)
-      @logger = Logger::Logger.instance
-      @avfile = avfile
+    def initialize (source, output_type_obj, dont_check, dont_drop, audio_only, image_sequence_class)
+      super( source, output_type_obj )
       @cinemaslidesdir = CSTools.get_cinemaslidesdir
       @options = OptParser::Optparser.get_options     
       @options.fade_in_time = 0
-      @options.duration = 1.0/24.0
+      @options.duration = 1.0/@options.fps
       @options.fade_out_time = 0
       @options.transition_and_timing = Array.new
       @options.transition_and_timing << CinemaslidesCommon::TRANSITION_CHOICE_CUT
       @options.transition_and_timing << @options.duration # duration
+      # FIXME make as options on commandline
+      @av_input_fps = ""
+      @av_input_fps_option = ( @av_input_fps == "" ) ? "" : "-r #{ @av_input_fps }"
+      @av_output_image_suffix = 'png'
+      @asset_functions = Asset::AVSequenceAssetFunctions.new(output_type_obj, av_input_fps = @av_input_fps, av_output_image_suffix = @av_output_image_suffix )
     end
     def seperate_and_check_files
-      if @avfile.empty?
+      if @source.empty?
 	@logger.info( 'No files specified' )
 	return Array.new, Array.new, Array.new, FALSE
       end
-      @image_output_dir = File.join(@cinemaslidesdir, "tif_from_av_#{ get_timestamp }")
-#      @image_output_dir = "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00"
+      if @source.length > 1
+	@logger.info( 'Only one file allowed witn input-type avcontainer' )
+	return @source, Array.new, Array.new, FALSE
+      end
+      @avfile = @source[0]
       
-      Dir.mkdir( @image_output_dir )
-      @audio_from_av = File.join(@cinemaslidesdir, "audio_from_av_#{ get_timestamp }_" + CinemaslidesCommon::FILE_SUFFIX_PCM)
-#      @audio_from_av = "/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"
-      # TODO create a method in ShellCommands for this
-      # FIXME do not hard code fps
-      `ffmpeg -y -i #{CSTools.shell_escape(@avfile)} -an -r 25   -qscale 1 -qmin 1 -intra  -pix_fmt yuv420p -b 50000k #{File.join(@image_output_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+".png")}`
-      `ffmpeg -y -i #{CSTools.shell_escape(@avfile)} -acodec pcm_s24le -r 25  -ar 48000 #{ @audio_from_av }`
+      image_asset_dir = @asset_functions.create_video_asset( @avfile ) {|asset_dir|
+	Dir.mkdir( asset_dir )
+	`ffmpeg -y -i #{CSTools.shell_escape(@avfile)} -an #{ @av_input_fps_option }   -qscale 1 -qmin 1 -intra  -pix_fmt yuv420p -b 50000k  #{File.join( asset_dir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT + '.' + @av_output_image_suffix)}`
+      }
+      audio_asset = @asset_functions.create_audio_asset( @avfile ) {|a|
+	`ffmpeg -y -i #{CSTools.shell_escape(@avfile)} -acodec pcm_s24le #{ @av_input_fps_option }  -ar 48000  #{ a }`
+      }
       
-#      return Dir.glob( "/BACKUPS/DCP-TEST/tif_from_av_2011-05-18T11:27:11+02:00/*" ).sort,  ["/BACKUPS/DCP-TEST/audio_from_av_2011-05-18T11:27:13+02:00_.wav"], nil, TRUE
-      
-      return Dir.glob( "#{ @image_output_dir }/*" ).sort,  [@audio_from_av], nil, TRUE
+      return Dir.glob( "#{ image_asset_dir }/*" ).sort,  [audio_asset], nil, TRUE
       
     end
   end
 
   class SlideshowInputType < InputType
     
-    def initialize( source, dont_check, dont_drop, audio_only, image_sequence_class  )
-      super( source )
+    def initialize( source, output_type_obj, dont_check, dont_drop, audio_only, image_sequence_class  )
+      super( source, nil )
       @dont_check = dont_check
       @dont_drop = dont_drop
       @audio_only = audio_only
@@ -83,7 +84,6 @@ module InputType
       # check provided files for readability, type and validity
       # come up with 3 lists: image files, audio files, unusable files
 #      @source = ARGV
-# FIXME filenames with spaces won't work. bummer
       source_audio = Array.new
       if @dont_check ####
 	if @source.empty?

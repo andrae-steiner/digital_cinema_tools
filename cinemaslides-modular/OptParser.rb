@@ -23,6 +23,10 @@ class Optparser
     options.output_type = OUTPUT_TYPE_CHOICE_PREVIEW
     options.dcp_norm = OUTPUT_TYPE_CHOICE_NO_DCP_NORM
     options.output_type_choices = [ OUTPUT_TYPE_CHOICE_PREVIEW, OUTPUT_TYPE_CHOICE_FULLPREVIEW, OUTPUT_TYPE_CHOICE_DCP, OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM, OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM ]
+    
+    options.dcp_graphics_format = DEFAULT_GRAPHICS_FORMAT
+    options.dcp_graphics_format_choices = [ MPEG_GRAPHICS_FORMAT, JPEG2000_GRAPHICS_FORMAT, DEFAULT_GRAPHICS_FORMAT  ]
+    
     options.size = CONTAINER_SIZE_2K
     options.size_choices = [ CONTAINER_SIZE_2K, CONTAINER_SIZE_4K ]
     options.aspect = ASPECT_CHOICE_FLAT
@@ -90,7 +94,7 @@ class Optparser
       opts.banner = <<BANNER
 #{ AppName } #{ AppVersion } #{ ENV[ 'CINEMASLIDESDIR' ].nil? ? "\nExport CINEMASLIDESDIR to point to desired work directory needed for temporary files, thumbnails, asset depot, DCPs (Default: HOME/cinemaslidesdir)" : "\nCINEMASLIDESDIR is set (#{ ENV[ 'CINEMASLIDESDIR' ] })" } 
  
-Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [--n-threads <threads>] [--3d-left <x,y,z>] [--3d-right <x,y,z>] [--3d-audio <x,y,z>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
+Usage: #{ File.basename( $0 ) } [--input-type <type>] [-t, --type <type>] [--dcp-graphics-format <graphics format> ] [--n-threads <threads>] [--3d-left <x,y,z>] [--3d-right <x,y,z>] [--3d-audio <x,y,z>] [-k, --size <DCP resolution>] [-a, --aspect <aspect name or widthxheight>] [--dont-resize] [--fps <fps>] [-x --transition-and-timing <type,a,b[,c]>] [-j, --jpeg2000-codec <jpeg2000_codec>] [-f, --output-format <image suffix>] [-b, --black <seconds>] [--bl, --black-leader <seconds>] [--bt, --black-tail <seconds>] [-s, --samplerate <audio samplerate>] [--bps <bits per audio sample>] [--title <DCP title>] [--issuer <DCP issuer/KDM facility code>] [--annotation <DCP/KDM annotation>] [--kind <DCP kind>] [--wrap-stereoscopic] [-o, --dcp-out <path>] [-m, --montagepreview] [--mg, --mplayer-gamma <gamma>] [--keep] [--dont-check] [--dont-drop] [--sign] [--encrypt] [--root-cert <root-cert>] [--ca-cert <ca-cert>] [--signer-cert <signer-cert>] [--signer-key <signer-cert>] [--kdm] [--cpl <cpl file>] [--start <days from now>] [--end <days from now] [--target <certificate>] [-v, --verbosity <level>] [--examples] [-h, --help] [ image and audio files ] [ KDM mode parameters ]
 
 BANNER
 
@@ -110,7 +114,15 @@ BANNER
         end
       end
       
-      opts.on( '--n-threads threads', Integer, 'Number of threads for creating image sequence and encoding. not yet for checking  (Default: 8)' ) do |p|
+      opts.on( '--dcp-graphics-format format',  String, 'Use one of #{ pretty_print_choices( options.dcp_graphics_format_choices ) } (Default: #{MPEG_GRAPHICS_FORMAT} for mxf-interop dcp and #{JPEG2000_GRAPHICS_FORMAT} smpte dcp ) ) ' ) do |p|
+        if options.dcp_graphics_format_choices.include?( p.downcase )
+          options.dcp_graphics_format = p.downcase
+        else
+          options.dcp_graphics_format = 'catch:' + p
+        end
+      end
+      
+      opts.on( '--n-threads threads', Integer, 'Number of threads for creating image sequences, thumbnaills, for checking and encoding  (Default: 8)' ) do |p|
         options.n_threads = p if (p > 0)
       end
             
@@ -129,8 +141,7 @@ BANNER
         options.three_D = TRUE
       end
       
-      
-      opts.on( '--input-type type',  String, "Use one of #{ pretty_print_choices( options.input_type_choices ) } (Default: #{INPUT_TYPE_CHOICE_SLIDE}) ) (not yet fully implemented)" ) do |p|
+      opts.on( '--input-type type', String, "Use one of #{ pretty_print_choices( options.input_type_choices ) } (Default: #{INPUT_TYPE_CHOICE_SLIDE}) ) (not yet fully implemented)" ) do |p|
         if options.input_type_choices.include?( p.downcase )
           options.input_type = p.downcase
         else
@@ -138,7 +149,6 @@ BANNER
         end
       end
 
-      
       opts.on( '-k', '--size resolution', String, "Use one of #{ pretty_print_choices(  options.size_choices ) } (Default: #{CONTAINER_SIZE_2K})" ) do |p|
         if options.size_choices.include?( p.downcase )
           options.size = p.downcase
@@ -349,11 +359,7 @@ EXAMPLES
       begin
 	opts.parse!(args)
 	parse_again = FALSE
-      rescue OptionParser::InvalidOption => msg  
-	# display the system generated error message  
-	puts msg  
-	options.invalid_options_found = TRUE
-      rescue OptionParser::MissingArgument => msg  
+      rescue OptionParser::ParseError => msg  
 	# display the system generated error message  
 	puts msg  
 	options.invalid_options_found = TRUE
@@ -365,7 +371,7 @@ EXAMPLES
   end # parse
   
   def self.set_black_options
-     @@options.black_leader =  @@options.black_tail = @@options.black
+     @@options.black_leader = @@options.black_tail = @@options.black
      @@options.black_leader = @@options.black_leader.abs unless @@options.black_leader.nil?
      @@options.black_tail = @@options.black_tail.abs unless @@options.black_tail.nil?
   end
@@ -408,25 +414,17 @@ EXAMPLES
   end
   
   def self.output_type_option_ok?
-    logger = Logger::Logger.instance
-    m = @@options.output_type.match( /catch:(.*)/ )
-    unless m.nil?
-      logger.info( "Specify output type: #{ @@options.output_type_choices.join( ' or ') }" )
-      return FALSE
-    end
-    TRUE
+    option_ok?( @@options.output_type,  @@options.output_type_choices, "Specify output type:")
   end
 
   def self.input_type_option_ok?
-    logger = Logger::Logger.instance
-    m = @@options.input_type.match( /catch:(.*)/ )
-    unless m.nil?
-      logger.info( "Specify input type: #{ @@options.input_type_choices.join( ' or ' ) }" )
-      return FALSE
-    end
-    TRUE
+    option_ok?( @@options.input_type, @@options.input_type_choices,  "Specify input type:" )
   end
-
+  
+  def self.dcp_graphics_format_option_ok?
+    option_ok?( @@options.dcp_graphics_format, @@options.dcp_graphics_format_choices, "Specify dcp graphics format:" )
+  end
+  
   def self.dcp_related_options_ok?
     logger = Logger::Logger.instance
     # check dcp related @options
@@ -452,9 +450,6 @@ EXAMPLES
   def self.three_d_related_options_ok?
     logger = Logger::Logger.instance
     options_ok = TRUE
-    # check: wrap-stereoscopic has to be false
-    # check: output_type has to be OUTPUT_TYPE_CHOICE_DCP or  OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM
-    # check: dcp_norm has to be OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM
     # TODO check: 3d left and right channel exist and have equal number of images 
     #             ==> NOT SIMPLE, CAN THIS BE DONE ALREADY HERE
     if @@options.three_D
@@ -462,8 +457,8 @@ EXAMPLES
 	logger.info( "Options '--wrap-stereoscopic' and '--three-d' cannot be set both." )
 	options_ok = FALSE
       end
-      if @@options.dcp_norm == OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM 
-	logger.info( "With 3D the output_type has to be '#{OUTPUT_TYPE_CHOICE_DCP}' or '#{OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM}'" )
+      if @@options.dcp_graphics_format != JPEG2000_GRAPHICS_FORMAT 
+	logger.info( "With 3D the dcp graphics format has to be '#{JPEG2000_GRAPHICS_FORMAT}' and the type has to be one of '#{ [ OUTPUT_TYPE_CHOICE_DCP, OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM, OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM ].join( ', or ' ) }' " )
 	options_ok = FALSE
       end
       if @@options.three_D_left.size == 0 or @@options.three_D_right.size == 0
@@ -514,12 +509,11 @@ EXAMPLES
   end
   
   def self.set_output_format_option
-    if @@options.output_type == OUTPUT_TYPE_CHOICE_DCP
+    if @@options.dcp_graphics_format == JPEG2000_GRAPHICS_FORMAT
       @@options.output_format = SMPTE_INTERMEDIATE_FILE_SUFFIX
-    end
-    if @@options.dcp_norm == OUTPUT_TYPE_CHOICE_MXF_INTEROP_DCP_NORM
+    else 
       @@options.output_format = MXFI_INTERMEDIATE_FILE_SUFFIX
-    end
+    end  
   end
 
   def self.set_dcpdir_option( dcpdir )
@@ -529,7 +523,17 @@ EXAMPLES
       @@options.dcpdir = @@options.dcp_user_output_path
     end
   end
-
+  
+  def self.set_dcp_graphics_format
+    if @@options.dcp_graphics_format == DEFAULT_GRAPHICS_FORMAT
+      if ( @@options.dcp_norm == OUTPUT_TYPE_CHOICE_NO_DCP_NORM ) or
+	 ( @@options.dcp_norm == OUTPUT_TYPE_CHOICE_SMPTE_DCP_NORM  )
+	@@options.dcp_graphics_format = JPEG2000_GRAPHICS_FORMAT
+      else
+	@@options.dcp_graphics_format = MPEG_GRAPHICS_FORMAT
+    end
+    end
+  end
   private
   
   def self.read_key_or_cert_from_file(p)
@@ -540,6 +544,16 @@ EXAMPLES
       exit
     end
     return File.read(p)
+  end
+  
+  def self.option_ok?( options, choices, message)
+    logger = Logger::Logger.instance
+    m = options.match( /catch:(.*)/ )
+    unless m.nil?
+      logger.info( "#{ message } #{ choices.join( ' or ') }" )
+      return FALSE
+    end
+    TRUE
   end
   
   def self.pretty_print_choices (choices)

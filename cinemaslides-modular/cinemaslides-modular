@@ -326,17 +326,10 @@ end # DCTools
 include DCTools
 
 
-###
+#
+#		HERE   IT   STARTS
+#
 
-
-####											####
-####											####
-####				H E R E   I T   S T A R T S				####
-####											####
-####											####
-
-
-DCPFunctions_M.const_get('JPEG2000DCPGraphicsFormatFunctions')
 
 # reconstruct original commandline for readme file
 CSTools.set_commandline
@@ -398,11 +391,17 @@ end ### KDM mode
 
 exit if !OptParser::Optparser.output_type_option_ok?
 exit if !OptParser::Optparser.input_type_option_ok?
+exit if !OptParser::Optparser.dcp_graphics_format_option_ok?
+OptParser::Optparser.set_dcp_graphics_format
 
 # here the appropriate class e.g. preview or dcp is loaded
 @output_type_obj = OutputType.const_get(output_type_classnames[@options.output_type]).new( 
   mandatory = mandatories[@options.output_type], 
-  dcp_functions = DCPFunctions_M.const_get(dcp_functions_classnames[@options.dcp_norm]).new )
+  dcp_functions = 
+      DCPFunctions_M.const_get(dcp_functions_classnames[@options.dcp_norm]).new(
+		dcp_graphics_format_functions_classnames[ @options.dcp_graphics_format ]
+              ) 
+  )
 
 exit if !OptParser::Optparser.aspect_option_ok?
 exit if !OptParser::Optparser.size_option_ok?
@@ -419,6 +418,7 @@ OptParser::Optparser.set_output_format_option
 
 @input_type = InputType.const_get(input_type_classnames[@options.input_type]).new(
   source = @options.three_D ? @options.three_D_left : ARGV,
+  output_type_obj = @output_type_obj,
   dont_check = @options.dont_check,
   dont_drop = @options.dont_check,
   @image_sequence_class, 
@@ -477,16 +477,18 @@ end
 
 TODO = <<TODO
 
-FIXME source filenames with spaces:
+done FIXME source filenames with spaces:
   a) shell removes protection and hands over unprotected args
   b) cinemaslides/ruby would have to re-protect spaces when calling shell stuff (convert etc.)
      but needs unprotected filenames for internal stuff
   some on-the-fly protection needed here
 
 FIXME certificate handling and KDM mode, although working, need re-design to allow for more flexibility
-FIXME output some basic help message when app is called without any args. as it is app merely utters 'No image files specified'
-      somehow done
+
+somehow done FIXME output some basic help message when app is called without any args. as it is app merely utters 'No image files specified'
+
 done FIXME calculates message digest twice when building an encrypted package (for CPL and PKL)
+
 FIXME fps and --wrap-stereoscopic not in total harmony yet
 FIXME generic readme/report output
 FIXME check write completion on slow media (with -o | --dcp-out)

@@ -12,6 +12,7 @@ module Asset
       @logger = Logger::Logger.instance
       @asset_mutexes = Hash.new
       @check_asset_mutex = Mutex.new
+      @digests = Hash.new
     end
             
     def create_asset( filename_s,  suffix, level = nil , &block)
@@ -53,9 +54,25 @@ module Asset
       end
       return asset
     end
-    
+
+    # TAKE CARE: for different content with the filename
+    # you get the same hash. But this happens only if during a run of cinemaslides
+    # the content of a file is altered between calls to digest_over_content. Therefore
+    # the test.
     def digest_over_content( file )
-      Digest::MD5.hexdigest( File.read( file ) )
+      if @digests.has_key?(file)
+	id = @digests[ file ][ 0 ]
+	t  = @digests[ file ][ 1 ]
+	if (t <=> File.mtime( file ) ) != 0
+	  @logger.info("Fatal: content of \"#{ file }\" has been changed between calls of Asset::digest_over_content. Exiting. ")
+	  exit
+	end
+	id = @digests[ file ][ 0 ]
+      else
+	id = Digest::MD5.hexdigest( File.read( file ) )
+	@digests[ file ] = [ id, File.mtime( file ) ]
+      end
+      return id
     end
     def digest_over_file_basename( file )
       Digest::MD5.hexdigest( File.basename( file ) )
@@ -63,7 +80,56 @@ module Asset
     def digest_over_string( s )
       Digest::MD5.hexdigest( s )
     end
+    # Thanks Wolfgang
+    # entry into the asset depot will trigger a relatively strong and good enough md5 digest over content
+    # members of the asset depot will trigger a cheaper and good enough digest over filename (which is in part an md5 digest)
+    #   + dimensions + (level unless jpeg 2000 codestream requested) + (encoder + fps if jpeg 2000 codestream is requested) + suffix
+    # BEWARE Cheap hash  does not work for audio assets
+    def filename_hash2( file)
+      expanded_assetsdir = File.expand_path(@output_type_obj.assetsdir)
+      if File.expand_path(File.dirname( file )) != expanded_assetsdir 
+        digest_over_content( file )
+      else
+        digest_over_file_basename( file )
+      end
+    end
             
+  end
+  
+  class AVSequenceAssetFunctions < AssetFunctions
+    def initialize( output_type_obj, av_input_fps = 24, av_output_image_suffix = 'png' )
+      super( output_type_obj )
+      @av_input_fps = av_input_fps
+      @av_output_image_suffix = av_output_image_suffix
+    end
+    def create_asset( filename_s,  suffix, level = nil , &block)
+      raise NotImplementedError, "Do not call this method."
+    end
+    def create_video_asset( filename, &block)
+      return create_asset_2( filename, "", filename_to_video_asset_conversion_proc, nil, &block )
+    end
+    def create_audio_asset( filename, &block)
+      return create_asset_2( filename , CinemaslidesCommon::FILE_SUFFIX_PCM, filename_to_audio_asset_conversion_proc, nil, &block )
+    end
+    
+    private
+    
+    def filename_to_video_asset_conversion_proc
+      Proc.new do |filename, suffix, level |
+	id = digest_over_content( filename )
+	origin = File.basename( filename )
+	assetname = File.join( @output_type_obj.assetsdir, "from_av_video_" + id + "_#{ @av_input_fps }_#{ @av_output_image_suffix }" )
+	assetname, origin = assetname, origin
+      end
+    end
+    def filename_to_audio_asset_conversion_proc
+      Proc.new do |filename, suffix, level |
+	id = digest_over_content( filename )
+	origin = File.basename( filename )
+	assetname = File.join( @output_type_obj.assetsdir, "from_av_audio_" + id + suffix )
+	assetname, origin = assetname, origin
+      end
+    end
   end
   
   class AudioAssetfunctions < AssetFunctions
@@ -111,7 +177,6 @@ module Asset
     def initialize(output_type_obj, resize)
       super(output_type_obj)
       @resize = resize
-      @expanded_assetsdir = File.expand_path(@output_type_obj.assetsdir)
     end
     def create_black_asset( suffix, &block )
       return create_asset( CinemaslidesCommon::FILENAME_BLACK_FRAME, suffix,  level, &block )
@@ -132,19 +197,6 @@ module Asset
       end
     end
 
-    # Thanks Wolfgang
-    # entry into the asset depot will trigger a relatively strong and good enough md5 digest over content
-    # members of the asset depot will trigger a cheaper and good enough digest over filename (which is in part an md5 digest)
-    #   + dimensions + (level unless jpeg 2000 codestream requested) + (encoder + fps if jpeg 2000 codestream is requested) + suffix
-    def filename_hash2( file)
-      if File.expand_path(File.dirname( file )) != @expanded_assetsdir 
-        digest_over_content( file )
-      else
-        digest_over_file_basename( file )
-      end
-    end
-
-  
   end
   
   class ThumbAssetFunctions < AssetFunctions

@@ -12,9 +12,21 @@ module DCPFunctions_M
   
   
   class DCPGraphicsFormatFunctions
-    def initialize(dcp_functions)
-      @dcp_functions = dcp_functions
+    attr_reader :dimensions
+    def initialize
       @logger = Logger::Logger.instance
+      @imagecount = 0
+      @imagecount_mutex = Mutex.new
+    end
+    def inc_imagecount
+      @imagecount_mutex.synchronize do
+	@imagecount += 1
+      end
+    end
+    def get_imagecount
+      @imagecount_mutex.synchronize do
+      @imagecount
+      end
     end
     def convert_to_dcp_image_format (image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
       raise NotImplementedError, "Do not instanciate this abstract class: #{self.class}"    
@@ -24,11 +36,20 @@ module DCPFunctions_M
   
   class MPEGDCPGraphicsFormatFunctions < DCPGraphicsFormatFunctions
     
-    def convert_to_dcp_image_format (image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
-       convert_to_dcp_image_format_single_thread(image_sequence, image_sequence_conformdir, output_type,dcp_image_sequence_name )
+    def initialize
+      super
+      @dimensions = Hash.new
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_FLAT]      = [960, 519] # 1.85
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_SCOPE]     = [960, 402] # 2.38694638694639
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_HD]        = [960, 540] # 1.77777777777778
+      @dimensions[CinemaslidesCommon::ASPECT_CONTAINER] = [960, 540]
     end
-    def convert_to_dcp_image_format_single_thread(image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
-      x,y = dimensions[ CinemaslidesCommon::ASPECT_CONTAINER ].collect{|x| x * output_type.size.split( '' ).first.to_i}
+    
+    def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
+       convert_to_dcp_image_format_single_thread( image_sequence, image_sequence_conformdir, output_type,dcp_image_sequence_name )
+    end
+    def convert_to_dcp_image_format_single_thread( image_sequence, image_sequence_conformdir, output_type, dcp_image_sequence_name )
+      x,y = @dimensions[ CinemaslidesCommon::ASPECT_CONTAINER ].collect{|x| x * output_type.size.split( '' ).first.to_i}
       
       # `ffmpeg -f image2 -r #{output_type.fps} -i #{File.join(image_sequence_conformdir, CinemaslidesCommon::FILE_SEQUENCE_FORMAT+'.jpg')} -vcodec mpeg2video -pix_fmt yuv420p -s #{x}x#{y} -qscale 1 -qmin 1 -intra -r #{output_type.fps} -an #{dcp_image_sequence_name}`
       
@@ -36,10 +57,48 @@ module DCPFunctions_M
       
     end
     
+    def dcp_image_sequence_basename
+      "video.#{dcp_image_sequence_suffix}"
+    end
+    def dcp_image_sequence_suffix
+      "m2v"
+    end
+    def asset_suffix(suffix, options)
+      "_." + suffix
+    end
+    
+    def convert_resize_extent_color_specs( image, filename, resize, dimensions )
+      image_ending = image.gsub(/.*\./, "")
+      filename_ending = filename.gsub(/.*\./, "")
+      identify1 = `identify -ping #{CSTools.shell_escape( image )}`.split(" ")
+      @logger.debug( "image_ending = #{image_ending}, filename_ending = #{filename_ending}" )
+      @logger.debug( "identify1[2] = #{identify1[2]}, dimensions = #{dimensions}" )
+      ShellCommands.p_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions)
+    end
+    def convert_apply_level( image, level, filename )
+      ShellCommands.p_IM_convert_apply_level( image, level, filename)
+    end  
+    def create_blackframe (file, dimensions)
+       ShellCommands.p_IM_black_frame( file, dimensions )
+    end
+    
+    def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
+      @dcp_graphics_format_functions.convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
+    end
+
   end
   
   
   class JPEG2000DCPGraphicsFormatFunctions < DCPGraphicsFormatFunctions
+
+    def initialize
+      super
+      @dimensions = Hash.new
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_FLAT]      = [ 999, 540] # 1.85
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_SCOPE]     = [1024, 429] # 2.38694638694639
+      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_HD]        = [ 960, 540] # 1.77777777777778
+      @dimensions[CinemaslidesCommon::ASPECT_CONTAINER] = [1024, 540]
+    end
 
     def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
       Dir.mkdir( dcp_image_sequence_name )
@@ -66,9 +125,9 @@ module DCPFunctions_M
 	fps = image_sequence.fps)
       
       files.each do |file|
-	 @dcp_functions.inc_imagecount()
+	 inc_imagecount
 	# Wolfgang Woehl ad57b2f7d05f4a649e98 
-	asset_link = File.join( dcp_image_sequence_name, File.basename( file ).gsub( /.#{CinemaslidesCommon::SMPTE_INTERMEDIATE_FILE_SUFFIX}$/, '.' + @dcp_functions.dcp_image_sequence_suffix )  )
+	asset_link = File.join( dcp_image_sequence_name, File.basename( file ).gsub( /.#{CinemaslidesCommon::SMPTE_INTERMEDIATE_FILE_SUFFIX}$/, '.' + dcp_image_sequence_suffix )  )
 	
 #	if File.dirname( File.readlink( file ) ) == image_sequence_conformdir 
 # 	1st file is always a link to the asset depot
@@ -76,8 +135,8 @@ module DCPFunctions_M
 	if ( File.dirname( File.readlink( file ) ) == File.expand_path(image_sequence_conformdir) ) and ( !previous_asset.eql?( "" ) )	
 	  @logger.debug( "link previous_asset = #{ previous_asset }, asset_link = #{ asset_link }" )
 	  File.symlink( File.expand_path(previous_asset), asset_link ) 
-	  @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ @dcp_functions.get_imagecount } of #{ n_total_images })" )
-	  @logger.debug( "Skip (Full level): #{ File.basename( file ) } (#{ @dcp_functions.get_imagecount } of #{ n_total_images })" )
+	  @logger.cr( "Skip (Full level): #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
+	  @logger.debug( "Skip (Full level): #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
 	else
 	  
 	  # helps to speed up the check_for_asset calls
@@ -86,9 +145,9 @@ module DCPFunctions_M
 	  file = CSTools.dereference_links( file )
 	  
 	  # possible "Skip" message only with debug verbosity
-	  asset = image_sequence.asset_functions.create_asset( file, @dcp_functions.dcp_image_sequence_suffix, level = nil ) {|asset|
-	    @logger.cr( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ @dcp_functions.get_imagecount } of #{n_total_images })" )
-	    @logger.debug( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{  @dcp_functions.get_imagecount } of #{ n_total_images })" )
+	  asset = image_sequence.asset_functions.create_asset( file, dcp_image_sequence_suffix, level = nil ) {|asset|
+	    @logger.cr( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ get_imagecount } of #{n_total_images })" )
+	    @logger.debug( "#{ output_type.jpeg2000_codec }: #{ File.basename( file ) } (#{ get_imagecount } of #{ n_total_images })" )
 	    @logger.debug("@options.jpeg2000_codec = #{ output_type.jpeg2000_codec }")
 	    @logger.debug("Encode  >>#{file}<< to >>#{asset}<<. ");
 	    encoder.encode( file, asset )
@@ -99,26 +158,39 @@ module DCPFunctions_M
 	end
       end
     end # convert_to_dcp_image_format_2( n_total_images, image_sequence, image_sequence_conformdir, files, output_type, dcp_image_sequence_name )
+    
+    def dcp_image_sequence_basename
+      dcp_image_sequence_suffix
+    end
+    def dcp_image_sequence_suffix
+      'j2c'
+    end
+    def asset_suffix(suffix, options)
+      fps_suffix = (options.dcp_wrap_stereoscopic or options.three_D) ? '48' : options.fps.floor.to_s 
+      dcp_output_type_suffix = suffix == dcp_image_sequence_suffix ? '_' + encoder_ids[options.jpeg2000_codec] + '_' + fps_suffix : ''
+      dcp_output_type_suffix + "_." + suffix
+    end
   
+    def convert_resize_extent_color_specs( image, filename, resize, dimensions )
+      ShellCommands.smpte_dcp_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions)
+    end
+    def convert_apply_level( image, level, filename )
+      ShellCommands.smpte_dcp_IM_convert_apply_level( image, level, filename)
+    end  
+    def create_blackframe (file, dimensions)
+      ShellCommands.smpte_dcp_IM_black_frame( file, dimensions )
+    end                           
+
+    
   end
 	
   
   class DCPFunctions
+    attr_reader :dimensions
     def initialize( dcp_graphics_format_functions_classname )
       @logger = Logger::Logger.instance
-      @imagecount = 0
-      @imagecount_mutex = Mutex.new
-      @dcp_graphics_format_functions = DCPFunctions_M.const_get(dcp_graphics_format_functions_classname).new( self )
-    end
-    def inc_imagecount
-      @imagecount_mutex.synchronize do
-	@imagecount += 1
-      end
-    end
-    def get_imagecount
-      @imagecount_mutex.synchronize do
-      @imagecount
-      end
+      @dcp_graphics_format_functions = DCPFunctions_M.const_get(dcp_graphics_format_functions_classname).new
+      @dimensions = @dcp_graphics_format_functions.dimensions
     end
     def cpl_ns
       "None"
@@ -151,20 +223,38 @@ module DCPFunctions_M
       "None"
     end
     
+    def convert_resize_extent_color_specs( image, filename, resize, dimensions )
+      @dcp_graphics_format_functions.convert_resize_extent_color_specs( image, filename, resize, dimensions )
+    end
+    def convert_apply_level( image, level, filename )
+      @dcp_graphics_format_functions.convert_apply_level( image, level, filename )
+    end  
+    def create_blackframe( file, dimensions )
+      @dcp_graphics_format_functions.create_blackframe( file, dimensions )
+    end                                   
+    
+    def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
+      @dcp_graphics_format_functions.convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
+    end
+
+    def dcp_image_sequence_basename
+      @dcp_graphics_format_functions.dcp_image_sequence_basename
+    end
+    def dcp_image_sequence_suffix
+      @dcp_graphics_format_functions.dcp_image_sequence_suffix
+    end
+    def asset_suffix(suffix, options)
+      @dcp_graphics_format_functions.asset_suffix(suffix, options)
+    end
+
     private 
     
   end # class DCPFunctions
   
   
   class MXFInterOpDCPFunctions < DCPFunctions
-    attr_reader :dimensions
     def initialize( dcp_graphics_format_functions_classname = dcp_graphics_format_functions_classnames[ CinemaslidesCommon::MPEG_GRAPHICS_FORMAT ] )
       super( dcp_graphics_format_functions_classname )
-      @dimensions = Hash.new
-      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_FLAT]      = [960, 519] # 1.85
-      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_SCOPE]     = [960, 402] # 2.38694638694639
-      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_HD]        = [960, 540] # 1.77777777777778
-      @dimensions[CinemaslidesCommon::ASPECT_CONTAINER] = [960, 540]
     end
     def cpl_ns
       "http://www.digicine.com/PROTO-ASDCP-CPL-20040511#"
@@ -218,47 +308,13 @@ module DCPFunctions_M
     def font_mimetype
       "application/ttf"
     end
-    def convert_resize_extent_color_specs( image, filename, resize, dimensions )
-      image_ending = image.gsub(/.*\./, "")
-      filename_ending = filename.gsub(/.*\./, "")
-      identify1 = `identify -ping #{CSTools.shell_escape( image )}`.split(" ")
-      @logger.debug( "image_ending = #{image_ending}, filename_ending = #{filename_ending}" )
-      @logger.debug( "identify1[2] = #{identify1[2]}, dimensions = #{dimensions}" )
-      ShellCommands.p_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions)
-    end
-    def convert_apply_level( image, level, filename )
-      ShellCommands.p_IM_convert_apply_level( image, level, filename)
-    end  
-    def create_blackframe (file, dimensions)
-       ShellCommands.p_IM_black_frame( file, dimensions )
-    end
     
-    def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
-      @dcp_graphics_format_functions.convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
-    end
-
-    def dcp_image_sequence_basename
-      "video.#{dcp_image_sequence_suffix}"
-    end
-    def dcp_image_sequence_suffix
-      "m2v"
-    end
-    def asset_suffix(suffix, options)
-      "_." + suffix
-    end
-
   end # class MXFInterOpDCPFunctions < DCPFunctions
   
                                 
   class SMPTEDCPFunctions < DCPFunctions
-    attr_reader :dimensions
     def initialize( dcp_graphics_format_functions_classname = dcp_graphics_format_functions_classnames[ CinemaslidesCommon::JPEG2000_GRAPHICS_FORMAT ] )
       super( dcp_graphics_format_functions_classname )
-      @dimensions = Hash.new
-      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_FLAT]      = [ 999, 540] # 1.85
-      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_SCOPE]     = [1024, 429] # 2.38694638694639
-      @dimensions[CinemaslidesCommon::ASPECT_CHOICE_HD]        = [ 960, 540] # 1.77777777777778
-      @dimensions[CinemaslidesCommon::ASPECT_CONTAINER] = [1024, 540]
     end
     def cpl_ns
       "http://www.smpte-ra.org/schemas/429-7/2006/CPL"
@@ -287,6 +343,7 @@ module DCPFunctions_M
     def dcp_kind
       'smpte'
     end
+    
     def content_version_fragment(content_version_id, content_version_label, xml )
       xml.ContentVersion_ {
 	xml.Id_ "urn:uri:#{ content_version_id }"
@@ -296,6 +353,7 @@ module DCPFunctions_M
     def get_dcp_editrate(asset_meta)
        asset_meta[ CinemaslidesCommon::MXF_KEYS_EDIT_RATE ].to_s.gsub( '/', ' ' )
     end
+    
     def get_screen_aspect_ratio(dimension)
       dimension.gsub( 'x', ' ' )
     end
@@ -315,32 +373,7 @@ module DCPFunctions_M
     def font_mimetype
       "application/x-font-ttf"
     end
-    def convert_resize_extent_color_specs( image, filename, resize, dimensions )
-      ShellCommands.smpte_dcp_IM_convert_resize_extent_color_specs( image, filename, resize, dimensions)
-    end
-    def convert_apply_level( image, level, filename )
-      ShellCommands.smpte_dcp_IM_convert_apply_level( image, level, filename)
-    end  
-    def create_blackframe (file, dimensions)
-      ShellCommands.smpte_dcp_IM_black_frame( file, dimensions )
-    end                           
-    
-    def convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
-      @dcp_graphics_format_functions.convert_to_dcp_image_format( image_sequence, image_sequence_conformdir, output_type,  dcp_image_sequence_name )
-    end
-        
-    def dcp_image_sequence_basename
-      dcp_image_sequence_suffix
-    end
-    def dcp_image_sequence_suffix
-      'j2c'
-    end
-    def asset_suffix(suffix, options)
-      fps_suffix = (options.dcp_wrap_stereoscopic or options.three_D) ? '48' : options.fps.floor.to_s 
-      dcp_output_type_suffix = suffix == dcp_image_sequence_suffix ? '_' + encoder_ids[options.jpeg2000_codec] + '_' + fps_suffix : ''
-      dcp_output_type_suffix + "_." + suffix
-    end
-  
+      
     private 
     
   end # class SMPTEDCPFunctions < DCPFunctions

@@ -131,6 +131,7 @@ module CinemaslidesCommon
   
   MPEG_GRAPHICS_FORMAT = 'mpeg'
   JPEG2000_GRAPHICS_FORMAT = 'jpeg2000'
+  DEFAULT_GRAPHICS_FORMAT = 'default'
   
     
   # calculate indices of array source for multithreading

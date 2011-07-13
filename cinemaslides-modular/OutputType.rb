@@ -53,6 +53,19 @@ module OutputType
       @mandatory = mandatory
       @dcp_functions = dcp_functions
       @cinemaslidesdir = CSTools.get_cinemaslidesdir
+      
+      @assetsdir = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_BASENAME )
+      if CSTools.confirm_or_create( @cinemaslidesdir )
+	@logger.debug( "#{ @cinemaslidesdir } is writeable" )
+      else
+	@logger.critical( "#{ @cinemaslidesdir } is not writeable. Check your mounts or export CINEMASLIDESDIR to point to a writeable location." )
+	exit
+      end
+#      unless source_empty # TODO audio-only DCP
+	Dir.mkdir( @assetsdir ) unless File.exists?( @assetsdir )
+#      end
+      
+
     end  
     
     def all_mandatory_tools_available?
@@ -264,24 +277,14 @@ module OutputType
       @keysdir = File.join( @cinemaslidesdir, CinemaslidesCommon::KEYSDIR_BASENAME )
       
       OptParser::Optparser.set_dcpdir_option(File.join( @workdir, CinemaslidesCommon::DCPDIR_BASENAME ))
-     
 
-      @assetsdir = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_BASENAME )
-      if CSTools.confirm_or_create( @cinemaslidesdir )
-	@logger.debug( "#{ @cinemaslidesdir } is writeable" )
-      else
-	@logger.critical( "#{ @cinemaslidesdir } is not writeable. Check your mounts or export CINEMASLIDESDIR to point to a writeable location." )
-	exit
-      end
-      unless source_empty # TODO audio-only DCP
-	Dir.mkdir( @assetsdir ) unless File.exists?( @assetsdir )
-      end
+#     assetsdir already initialized in initialize      
       
-
       @assetsdir_audio = File.join( @cinemaslidesdir, CinemaslidesCommon::ASSETSDIR_AUDIO_BASENAME )
       unless source_audio_empty
 	Dir.mkdir( @assetsdir_audio ) unless File.exists?( @assetsdir_audio )
       end
+
     end
     
     def final_report (context)

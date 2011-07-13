@@ -157,14 +157,14 @@ module ShellCommands
 	-bordercolor lightblue \
       #{ CSTools.shell_escape( output ) }`
     end
-    def self.IM_composite_command( image1, level, image2, depth_parameter, compress_parameter, output)
+    def self.IM_composite_command( image1, level, image2, depth_parameter, compress_parameter, output )
       `composite -type TrueColor #{ (image1.end_with?('.jpg')) ? ' -quality 92' : '' } #{ CSTools.shell_escape( image1 ) } -dissolve #{ level } #{ (image2.end_with?('.jpg')) ? ' -quality 92' : '' }  #{ CSTools.shell_escape( image2 ) } #{ depth_parameter } #{ compress_parameter } #{ (output.end_with?('.jpg')) ? ' -quality 92' : '' } #{ CSTools.shell_escape( output ) } `
     end
-    def self.IM_composite_rotate_command( image1, rotation, level, image2, depth_parameter, compress_parameter, output)
-      `convert #{ CSTools.shell_escape( image1 ) } -background black -geometry 1920x1080!  -rotate #{ rotation } miff:- | composite -type TrueColor miff:- -dissolve #{ level } #{ CSTools.shell_escape( image2 ) } #{ depth_parameter } #{ compress_parameter } #{ CSTools.shell_escape( output ) }`
+    def self.IM_composite_rotate_command( image1, rotation, level, image2, depth_parameter, compress_parameter, dimensions, output )
+      `convert #{ CSTools.shell_escape( image1 ) } -background black -geometry #{ dimensions }!  -rotate #{ rotation } miff:- | composite -type TrueColor miff:- -dissolve #{ level } #{ CSTools.shell_escape( image2 ) } #{ depth_parameter } #{ compress_parameter } #{ CSTools.shell_escape( output ) }`
     end
     # TODO check for shell_escape
-    def self.openssl_rsautl_base_64( target, path)
+    def self.openssl_rsautl_base_64( target, path )
       `openssl rsautl -encrypt -oaep -certin -inkey #{ target } -in #{ path } | openssl base64`
     end
     def self.opendcp_j2k_command( file, output, additional_options )
@@ -172,7 +172,7 @@ module ShellCommands
       @logger.debug("OpenDcp COMMAND = opendcp_j2k -i #{ CSTools.shell_escape( file ) } -o #{ CSTools.shell_escape( output ) } -x #{ additional_options }")
       `opendcp_j2k -i #{ CSTools.shell_escape( file ) } -o #{ CSTools.shell_escape( output ) } -x #{ additional_options }`
     end
-    def self.kakadu_encode_command( file, output, profile, max_bpi, max_bpc)
+    def self.kakadu_encode_command( file, output, profile, max_bpi, max_bpc )
       `kdu_compress -i #{ CSTools.shell_escape( file ) } -o #{ CSTools.shell_escape( output ) } Sprofile=#{ profile } Creslengths=#{ max_bpi } Creslengths:C0=#{ max_bpi },#{ max_bpc } Creslengths:C1=#{ max_bpi },#{ max_bpc } Creslengths:C2=#{ max_bpi },#{ max_bpc }`
     end
     def self.image_to_j2k_command( file, output, profile )

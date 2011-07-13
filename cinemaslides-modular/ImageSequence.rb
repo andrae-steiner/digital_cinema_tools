@@ -173,19 +173,33 @@ module ImageSequence
 
     def fade_in( image, fade_in_time, file_sequence )
       @logger.info( ">>> Fade in #{ imagecount_info( image ) }" )
-      initial = -100.0
-      final = 0.0
-      step = 100 / ( fade_in_time * @fps )
-      fade( image, fade_in_time, initial, final, step, file_sequence )
+      fade( image, 
+            fade_in_time, 
+            initial = -100.0, 
+            final   = 0.0, 
+            step    = 100 / ( fade_in_time * @fps ), 
+            file_sequence )
     end
 
 
     def fade_out( image, fade_out_time, file_sequence )
       @logger.info( "<<< Fade out #{ imagecount_info( image ) }" )
-      initial = 0.0
-      final = -100.0
-      step = - ( 100 / ( fade_out_time * @fps ) )
-      fade( image, fade_out_time, initial, final, step, file_sequence )
+      fade( image, 
+            fade_out_time, 
+            initial = 0.0, 
+            final   = -100.0, 
+            step    = - ( 100 / ( fade_out_time * @fps ) ), 
+            file_sequence )
+    end
+    
+    def fading_levels( initial, final, step ) 
+      if step > 0 # fade in
+	ladder = ( initial .. final ).step( step ).collect
+      else # fade out
+	ladder = ( final .. initial ).step( step.abs ).collect
+      end
+      levels = ladder.collect { |rung| sigmoid( rung, initial, final, -50, 0.125 ) }
+      return levels
     end
 
     def composite( image1, level, image2, output ) # -compress none for kakadu
@@ -193,13 +207,10 @@ module ImageSequence
     end
 
     def fade( image, seconds, initial, final, step, file_sequence )
-      if step > 0 # fade in
-	ladder = ( initial .. final ).step( step ).collect
-      else # fade out
-	ladder = ( final .. initial ).step( step.abs ).collect
-      end
-      ladder[ -1 ] = 0 # sic. float implementation, tighten the nut
-      levels = ladder.collect { |rung| sigmoid( rung, initial, final, -50, 0.125 ) }
+            
+      levels = fading_levels( initial, final, step )
+      
+      levels[ -1 ] = 0 # sic. float implementation, tighten the nut
       if levels.first < -50
 	levels[ 0 ] = -100
 	levels[ -1 ] = 0
@@ -225,12 +236,10 @@ module ImageSequence
     end
 
     def crossfade( image1, image2, seconds, file_sequence )
-      @logger.info( "XXX Crossfade #{ imagecount_info( image1 ) }" )      
-      initial = 100.0
-      final = 0.0
-      step = - ( 100 / ( seconds * @fps ) )
-      ladder = ( final .. initial ).step( step.abs ).collect
-      levels = ladder.collect { |rung| sigmoid( rung, initial, final, 50, 0.125 ) }
+      @logger.info( "XXX Crossfade #{ imagecount_info( image1 ) }" )    
+            
+      levels = fading_levels( 100.0, 0.0, - ( 100 / ( seconds * @fps ) ) )
+      
       ( 1..( seconds * @fps ) ).each do |i|
 	filename = file_sequence.next_file
 	level = levels[ i - 1 ]
@@ -338,15 +347,15 @@ module ImageSequence
 	  count.times do |index|
 	    incr_imagecount()
 	    image1 = keeper
-	    image2 = conform( @source[ start_index + index + 1 ] )
-	    keeper = image2
             # image1 and image2 are file names
             @asset_functions.do_synchronized( image1 ) {
 	      full_level( image1,  @duration, file_sequence )
             }
+	    image2 = conform( @source[ start_index + index + 1 ] )
             @asset_functions.do_synchronized( image2 ) {
 	      crossfade( image1, image2,  @crossfade_time, file_sequence )
             }
+	    keeper = image2
 	  end
 	  if (thread_i == indices.length - 1)
 	    incr_imagecount()
@@ -395,7 +404,7 @@ module ImageSequence
 
     
     def composite( image1, rotation, level, image2, output ) # -compress none for kakadu
-      ShellCommands.IM_composite_rotate_command( image1, rotation, level, image2, @output_type_obj.depth_parameter, @output_type_obj.compress_parameter, output)
+      ShellCommands.IM_composite_rotate_command( image1, rotation, level, image2, @output_type_obj.depth_parameter, @output_type_obj.compress_parameter, @output_type_obj.dimensions, output )
     end
 
 
